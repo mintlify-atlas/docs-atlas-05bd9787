@@ -1,0 +1,248 @@
+---
+title: "Responsive images"
+description: "Use CLDResponsiveParams and CLDResponsiveViewHelper to fetch images sized exactly to a view's bounds, with configurable step sizes, dimension limits, and reload-on-resize behavior."
+keywords: ["CLDResponsiveParams", "CLDResponsiveViewHelper", "responsive", "breakpoints", "auto width", "auto height", "fit", "fill"]
+---
+
+Responsive image loading fetches an image at the closest breakpoint to a view's actual rendered size instead of downloading a one-size-fits-all image. The SDK snaps the requested dimensions to configurable step sizes and clamps them to minimum and maximum limits. As a result, a small number of distinct image variants serve the full range of device sizes, and each variant is cached separately.
+
+## How it works
+
+When you provide a `CLDResponsiveParams` instance to `cldSetImage`, the SDK:
+
+1. Waits until the view's bounds are non-zero (after `layoutSubviews` fires).
+2. Reads the view's content width and/or height, subtracting layout margins.
+3. Rounds the dimension up to the nearest multiple of `stepSizePoints` (default 50 pt).
+4. Clamps the result between `minDimensionPoints` (default 50 pt) and `maxDimensionPoints` (default 350 pt).
+5. Appends the snapped width and/or height — plus the device's screen scale as a `dpr` parameter — to the transformation chain.
+6. Generates the Cloudinary URL and starts the download.
+
+If `shouldReloadOnSizeChange` is `true`, the SDK repeats this process whenever the view grows larger than the size it was last fetched at.
+
+## CLDResponsiveParams
+
+`CLDResponsiveParams` holds all configuration for responsive behavior.
+
+### Preset constructors
+
+Two static presets cover the most common cases:
+
+<CodeGroup>
+
+```swift fit preset
+// Scales the image to fill both dimensions while preserving aspect ratio.
+// Uses c_fit crop mode.
+let params = CLDResponsiveParams.fit()
+```
+
+```swift autoFill preset
+// Fills both dimensions, cropping if needed, with automatic gravity.
+// Uses c_fill crop with g_auto.
+let params = CLDResponsiveParams.autoFill()
+```
+
+</CodeGroup>
+
+### Full constructor
+
+If the presets don't match your needs, create a custom instance:
+
+```swift
+let params = CLDResponsiveParams(
+    autoWidth: true,
+    autoHeight: false,
+    cropMode: .fill,
+    gravity: .face
+)
+```
+
+<ParamField path="autoWidth" type="Bool" required>
+  When `true`, the SDK sets the `width` transformation parameter to the snapped content width of the view.
+</ParamField>
+
+<ParamField path="autoHeight" type="Bool" required>
+  When `true`, the SDK sets the `height` transformation parameter to the snapped content height of the view.
+</ParamField>
+
+<ParamField path="cropMode" type="CLDTransformation.CLDCrop?">
+  The Cloudinary crop mode to include in the transformation, for example `.fit`, `.fill`, or `.crop`. Pass `nil` to omit the crop parameter.
+</ParamField>
+
+<ParamField path="gravity" type="CLDTransformation.CLDGravity?">
+  The Cloudinary gravity value, for example `.auto` or `.face`. Pass `nil` to omit the gravity parameter.
+</ParamField>
+
+### Configuration setters
+
+All setters return `Self`, so you can chain them.
+
+<ParamField path="setStepSize(_:)" type="Int" default="50">
+  The granularity of the requested dimension in points. The view's dimension is rounded up to the nearest multiple of this value. A lower step size produces more image variants; a higher step size produces fewer, coarser breakpoints.
+
+  ```swift
+  params.setStepSize(100)
+  ```
+</ParamField>
+
+<ParamField path="setMaxDimension(_:)" type="Int" default="350">
+  The upper bound for the requested dimension in points. Views wider or taller than this value still request an image at `maxDimensionPoints`.
+
+  ```swift
+  params.setMaxDimension(1200)
+  ```
+</ParamField>
+
+<ParamField path="setMinDimension(_:)" type="Int" default="50">
+  The lower bound for the requested dimension in points. Views smaller than this value request an image at `minDimensionPoints`.
+
+  ```swift
+  params.setMinDimension(100)
+  ```
+</ParamField>
+
+<ParamField path="setReloadOnSizeChange(_:)" type="Bool" default="false">
+  When `true`, the SDK re-fetches a larger image if the view grows beyond the size at which it was last loaded. When `false`, the original image is kept even if the view expands.
+
+  ```swift
+  params.setReloadOnSizeChange(true)
+  ```
+</ParamField>
+
+### Chained configuration example
+
+```swift
+let params = CLDResponsiveParams.fit()
+    .setStepSize(100)
+    .setMaxDimension(1200)
+    .setMinDimension(100)
+    .setReloadOnSizeChange(true)
+```
+
+## Using CLDResponsiveParams with CLDUIImageView
+
+Pass your configured `CLDResponsiveParams` instance to `CLDUIImageView.cldSetImage`:
+
+```swift
+let imageView = CLDUIImageView()
+
+imageView.cldSetImage(
+    publicId: "products/sneaker-001",
+    cloudinary: cloudinary,
+    responsiveParams: CLDResponsiveParams.autoFill()
+        .setStepSize(100)
+        .setMaxDimension(800),
+    transformation: CLDTransformation().setQuality("auto").setFetchFormat("auto"),
+    placeholder: UIImage(named: "product-placeholder")
+)
+```
+
+`CLDUIImageView` overrides `layoutSubviews()` and calls `responsiveHelper.onViewSizeKnown(view:)` as soon as `bounds.width > 0 && bounds.height > 0`. You can safely call `cldSetImage` before the view has been laid out.
+
+## CLDResponsiveViewHelper for custom views
+
+If you cannot subclass `CLDUIImageView` — for example, if you have an existing `UIView` subclass that contains an `UIImageView` — use `CLDResponsiveViewHelper` directly.
+
+`CLDResponsiveViewHelper` encapsulates the same responsive logic as `CLDUIImageView` but works with any `UIImageView`. You create one instance per view that needs responsive loading and integrate it by calling two methods at the right times.
+
+### Setup
+
+```swift
+class MyCustomImageCard: UIView {
+
+    let imageView = UIImageView()
+    let responsiveHelper = CLDResponsiveViewHelper()
+
+    // Call this instead of imageView.cldSetImage directly
+    func loadImage(publicId: String, cloudinary: CLDCloudinary) {
+        responsiveHelper.cldSetImage(
+            view: imageView,
+            publicId: publicId,
+            cloudinary: cloudinary,
+            responsiveParams: CLDResponsiveParams.fit()
+        )
+    }
+
+    // Notify the helper once the view's bounds are known
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if bounds.width > 0 && bounds.height > 0 {
+            responsiveHelper.onViewSizeKnown(view: imageView)
+        }
+    }
+}
+```
+
+### CLDResponsiveViewHelper method reference
+
+<ParamField path="cldSetImage(view:publicId:cloudinary:signUrl:resourceType:responsiveParams:transformation:placeholder:)" type="method">
+  Stores the image parameters and triggers a download if the view size is already known. Mirrors the `CLDUIImageView.cldSetImage` parameters exactly.
+</ParamField>
+
+<ParamField path="onViewSizeKnown(view:)" type="method">
+  Call this from `layoutSubviews()` once the view's bounds are non-zero. The helper decides whether to start or skip the download based on whether this is the first call or whether the view has grown (when `shouldReloadOnSizeChange` is `true`).
+</ParamField>
+
+## Auto-responsive breakpoint logic
+
+The table below shows how a 375 pt wide view maps to requested widths at different step sizes. The device has a 3× screen scale, so the final `width` parameter sent to Cloudinary is `requestedWidth × 3`.
+
+| View width (pt) | Step size | Snapped width (pt) | Cloudinary `w_` param (3× scale) |
+|---|---|---|---|
+| 375 | 50 | 400 | 1200 |
+| 375 | 100 | 400 | 1200 |
+| 375 | 200 | 400 | 1200 |
+| 200 | 50 | 200 | 600 |
+| 60 | 50 | 100 (min) | 300 |
+| 1000 | 50 | 350 (max) | 1050 |
+
+<Note>
+  The `dpr` (device pixel ratio) parameter is always set to `UIScreen.main.scale`. To request retina-quality images, you do not need to multiply your step sizes — the SDK handles this automatically.
+</Note>
+
+## Complete example
+
+```swift
+import UIKit
+import Cloudinary
+
+class GalleryCell: UICollectionViewCell {
+
+    let imageView = CLDUIImageView()
+    let cloudinary = CLDCloudinary(
+        configuration: CLDConfiguration(cloudName: "my-cloud", apiKey: "my-key")
+    )
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        contentView.addSubview(imageView)
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    func configure(publicId: String) {
+        let params = CLDResponsiveParams.autoFill()
+            .setStepSize(100)
+            .setMaxDimension(800)
+            .setReloadOnSizeChange(false)
+
+        imageView.cldSetImage(
+            publicId: publicId,
+            cloudinary: cloudinary,
+            responsiveParams: params,
+            transformation: CLDTransformation()
+                .setQuality("auto")
+                .setFetchFormat("auto"),
+            placeholder: UIImage(named: "cell-placeholder")
+        )
+    }
+}
+```

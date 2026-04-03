@@ -1,0 +1,374 @@
+---
+title: 'Using the SDK from Objective-C'
+description: 'Import and use the Cloudinary iOS SDK in Objective-C projects, including class setup, uploads, URL generation, and type interop patterns.'
+keywords: ['objective-c', 'objc', 'interop', '@objcMembers', 'CLDConfiguration', 'CLDCloudinary', 'CLDTransformation', 'CLDUploader', 'CLDDownloader']
+---
+
+The Cloudinary iOS SDK is written in Swift, but every public class is decorated with `@objcMembers` so it is fully accessible from Objective-C without any bridging boilerplate.
+
+---
+
+## Importing the framework
+
+Add the framework to your Objective-C file using the generated Swift umbrella header:
+
+```objc
+#import <Cloudinary/Cloudinary-Swift.h>
+```
+
+This single import exposes all `@objcMembers`-annotated classes, including `CLDConfiguration`, `CLDCloudinary`, `CLDTransformation`, `CLDUploader`, `CLDDownloader`, `CLDManagementApi`, and all request and result types.
+
+<Note>
+If you are using CocoaPods or Swift Package Manager, add the framework as you normally would. The `Cloudinary-Swift.h` umbrella header is generated automatically when you build the framework target.
+</Note>
+
+---
+
+## Why all classes are visible
+
+All public SDK classes carry the `@objcMembers` attribute on their class declaration. For example:
+
+```swift
+// CLDCloudinary.swift
+@objcMembers open class CLDCloudinary: NSObject { … }
+
+// CLDManagementApi.swift
+@objcMembers open class CLDManagementApi: CLDBaseNetworkObject { … }
+
+// CLDDownloader.swift
+@objcMembers open class CLDDownloader: CLDBaseNetworkObject { … }
+
+// CLDUploader.swift
+@objcMembers open class CLDUploader: CLDBaseNetworkObject { … }
+```
+
+`@objcMembers` propagates Objective-C visibility to every `open` or `public` member of the class, including properties and methods. You do not need to annotate individual members.
+
+---
+
+## CLDConfiguration in Objective-C
+
+`CLDConfiguration` is also marked `@objcMembers` and extends `NSObject`, so you can initialize it using any of its designated initializers.
+
+<Tabs>
+  <Tab title="Objective-C">
+    ```objc
+    #import <Cloudinary/Cloudinary-Swift.h>
+
+    CLDConfiguration *config = [[CLDConfiguration alloc]
+        initWithCloudName:@"my-cloud"
+        apiKey:@"my-api-key"
+        apiSecret:nil          // omit for unsigned operations
+        privateCdn:NO
+        secure:YES
+        cdnSubdomain:NO
+        secureCdnSubdomain:NO
+        longUrlSignature:NO
+        signatureAlgorithm:SignatureAlgorithmSha1
+        signatureVersion:2
+        secureDistribution:nil
+        cname:nil
+        uploadPrefix:nil
+        timeout:nil
+        analytics:YES];
+    ```
+  </Tab>
+  <Tab title="Swift (equivalent)">
+    ```swift
+    let config = CLDConfiguration(
+        cloudName: "my-cloud",
+        apiKey: "my-api-key",
+        secure: true
+    )
+    ```
+  </Tab>
+</Tabs>
+
+You can also initialize from a Cloudinary URL string:
+
+```objc
+CLDConfiguration *config = [[CLDConfiguration alloc]
+    initWithCloudinaryUrl:@"cloudinary://api-key:api-secret@my-cloud"];
+if (!config) {
+    NSLog(@"Invalid Cloudinary URL");
+}
+```
+
+### Enum types in Objective-C
+
+Swift enums exposed to Objective-C are renamed. For `CLDConfiguration.SignatureAlgorithm`:
+
+| Swift | Objective-C |
+|-------|-------------|
+| `.sha1` | `SignatureAlgorithmSha1` |
+| `.sha256` | `SignatureAlgorithmSha256` |
+
+---
+
+## CLDCloudinary in Objective-C
+
+```objc
+CLDCloudinary *cloudinary = [[CLDCloudinary alloc]
+    initWithConfiguration:config
+            networkAdapter:nil
+      sessionConfiguration:nil];
+
+// Configure the cache
+cloudinary.enableUrlCache = YES;
+cloudinary.cacheMaxMemoryTotalCost = 30 * 1024 * 1024;  // 30 MB
+cloudinary.cacheMaxDiskCapacity    = 150 * 1024 * 1024; // 150 MB
+
+// Factory methods
+CLDUploader    *uploader   = [cloudinary createUploader];
+CLDDownloader  *downloader = [cloudinary createDownloader];
+CLDManagementApi *mgmt     = [cloudinary createManagementApi];
+```
+
+---
+
+## Generating delivery URLs in Objective-C
+
+`CLDUrl` is created through `[cloudinary createUrl]` and built using a chain of setter calls.
+
+<Tabs>
+  <Tab title="Objective-C">
+    ```objc
+    CLDTransformation *t = [[CLDTransformation alloc] init];
+    [t setWidth:400];
+    [t setHeight:300];
+    [t setCrop:@"fill"];
+
+    NSString *url = [[[cloudinary createUrl]
+        setTransformation:t]
+        generate:@"sample" signUrl:NO];
+
+    NSLog(@"%@", url);
+    // https://res.cloudinary.com/my-cloud/image/upload/c_fill,h_300,w_400/sample
+    ```
+  </Tab>
+  <Tab title="Swift (equivalent)">
+    ```swift
+    let t = CLDTransformation()
+        .setWidth(400)
+        .setHeight(300)
+        .setCrop("fill")
+
+    let url = cloudinary.createUrl()
+        .setTransformation(t)
+        .generate("sample")
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## CLDTransformation in Objective-C
+
+`CLDTransformation` is decorated with `@objcMembers`. Method calls return `Self` for chaining.
+
+<Tabs>
+  <Tab title="Objective-C">
+    ```objc
+    CLDTransformation *t = [[[[[CLDTransformation alloc] init]
+        setWidth:800]
+        setHeight:600]
+        setCrop:@"limit"];
+
+    // Chain a second transformation (adds a slash separator)
+    CLDTransformation *chain = [[t chain]
+        setEffect:@"grayscale"];
+    ```
+  </Tab>
+  <Tab title="Swift (equivalent)">
+    ```swift
+    let t = CLDTransformation()
+        .setWidth(800)
+        .setHeight(600)
+        .setCrop("limit")
+        .chain()
+        .setEffect("grayscale")
+    ```
+  </Tab>
+</Tabs>
+
+### Enum interop for resource types
+
+`CLDUrlResourceType` is an `@objc` enum. Its cases map to Objective-C constants:
+
+| Swift | Objective-C |
+|-------|-------------|
+| `.image` | `CLDUrlResourceTypeImage` |
+| `.video` | `CLDUrlResourceTypeVideo` |
+| `.raw` | `CLDUrlResourceTypeRaw` |
+
+---
+
+## Uploading in Objective-C
+
+`CLDUploader` exposes both signed and unsigned upload methods. Unsigned uploads use a preset; signed uploads require `apiSecret` in the configuration.
+
+<Tabs>
+  <Tab title="Unsigned upload — Objective-C">
+    ```objc
+    CLDUploader *uploader = [cloudinary createUploader];
+
+    NSData *imageData = UIImageJPEGRepresentation([UIImage imageNamed:@"photo"], 0.9);
+
+    [uploader uploadData:imageData
+            uploadPreset:@"my-unsigned-preset"
+                  params:nil
+                progress:nil
+       completionHandler:^(CLDUploadResult *result, NSError *error) {
+           if (result) {
+               NSLog(@"Uploaded: %@", result.publicId);
+               NSLog(@"URL: %@", result.secureUrl);
+           } else {
+               NSLog(@"Error: %@", error.localizedDescription);
+           }
+       }];
+    ```
+  </Tab>
+  <Tab title="Signed upload — Objective-C">
+    ```objc
+    CLDUploadRequestParams *params = [[CLDUploadRequestParams alloc] init];
+    [params setPublicId:@"my-folder/photo"];
+    [params setTags:@[@"ios", @"signed"]];
+
+    NSURL *fileUrl = [NSURL fileURLWithPath:[[NSBundle mainBundle]
+        pathForResource:@"photo" ofType:@"jpg"]];
+
+    [uploader uploadUrl:fileUrl
+                 params:params
+               progress:^(NSProgress *p) {
+                   NSLog(@"%.0f%%", p.fractionCompleted * 100);
+               }
+      completionHandler:^(CLDUploadResult *result, NSError *error) {
+           NSLog(@"%@", result.publicId);
+       }];
+    ```
+  </Tab>
+  <Tab title="Swift (unsigned, equivalent)">
+    ```swift
+    let uploader = cloudinary.createUploader()
+    let data = UIImage(named: "photo")!.jpegData(compressionQuality: 0.9)!
+
+    uploader.upload(data: data, uploadPreset: "my-unsigned-preset") { result, error in
+        print(result?.publicId ?? "")
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Downloading images in Objective-C
+
+<Tabs>
+  <Tab title="Objective-C">
+    ```objc
+    CLDDownloader *downloader = [cloudinary createDownloader];
+
+    NSString *url = [cloudinary createUrl].generate:@"sample" signUrl:NO];
+
+    [downloader fetchImage:url :nil
+         completionHandler:^(UIImage *image, NSError *error) {
+             dispatch_async(dispatch_get_main_queue(), ^{
+                 self.imageView.image = image;
+             });
+         }];
+    ```
+  </Tab>
+  <Tab title="UIImageView extension — Objective-C">
+    ```objc
+    // UIImageView+Cloudinary category method
+    [self.imageView cldSetImage:url
+                     cloudinary:cloudinary
+                    placeholder:[UIImage imageNamed:@"placeholder"]];
+    ```
+  </Tab>
+  <Tab title="Swift (equivalent)">
+    ```swift
+    let url = cloudinary.createUrl().generate("sample")!
+    downloader.fetchImage(url) { image, error in
+        DispatchQueue.main.async {
+            self.imageView.image = image
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Management API in Objective-C
+
+All `CLDManagementApi` methods are available from Objective-C. Overloaded Swift methods that differ only in parameter type expose explicit Objective-C selectors annotated with `@objc(...)`.
+
+```objc
+CLDManagementApi *mgmt = [cloudinary createManagementApi];
+
+// Rename
+[mgmt rename:@"old/photo" to:@"new/photo"
+    overwrite:@YES invalidate:@YES params:nil
+    completionHandler:^(CLDRenameResult *r, NSError *e) {
+        NSLog(@"%@", r.secureUrl);
+    }];
+
+// Delete
+[mgmt destroy:@"old/photo" params:nil
+    completionHandler:^(CLDDeleteResult *r, NSError *e) {
+        NSLog(@"%@", r.result);
+    }];
+
+// Add tag
+[mgmt addTag:@"featured"
+   publicIds:@[@"banner", @"splash"]
+      params:nil
+completionHandler:^(CLDTagResult *r, NSError *e) {
+    NSLog(@"%@", r.publicIds);
+}];
+
+// Add multiple tags — use the explicit Objective-C selector
+[mgmt addTags:@[@"featured", @"hero"]
+    publicIds:@[@"banner"]
+       params:nil
+completionHandler:nil];
+
+// Explicit (string type variant)
+[mgmt explicitPublicId:@"products/shoe"
+            stringType:@"upload"
+                params:nil
+    completionHandler:^(CLDExplicitResult *r, NSError *e) {
+        NSLog(@"%@", r.publicId);
+    }];
+```
+
+### Objective-C selector reference for overloaded methods
+
+Some Swift methods are overloaded on parameter type. The Objective-C selectors are:
+
+| Swift method | Objective-C selector |
+|---|---|
+| `addTag(_ tag: [String], publicIds:…)` | `addTags:publicIds:params:completionHandler:` |
+| `removeTag(_ tag: [String], publicIds:…)` | `removeTags:publicIds:params:completionHandler:` |
+| `replaceTag(_ tag: [String], publicIds:…)` | `replaceTags:publicIds:params:completionHandler:` |
+| `explicit(_:type: CLDType, …)` | `explicitPublicId:stringType:params:completionHandler:` |
+| `setType(_ type: CLDType)` on params | `setTypeWithType:` |
+
+---
+
+## Cancelling requests from Objective-C
+
+All request objects inherit from `CLDRequest`, which exposes `cancel`, `suspend`, and `resume`.
+
+```objc
+CLDRenameRequest *req = [mgmt rename:@"a" to:@"b"
+    overwrite:nil invalidate:nil params:nil completionHandler:nil];
+
+// Later, if you no longer need the result:
+[req cancel];
+
+// Or pause and continue:
+[req suspend];
+[req resume];
+```

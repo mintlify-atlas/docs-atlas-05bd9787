@@ -1,0 +1,327 @@
+---
+title: 'Upload preprocessing'
+description: 'Resize, validate, convert, and transcode assets on-device before uploading them to Cloudinary using preprocessing chains.'
+keywords: ['preprocessing', 'CLDImagePreprocessChain', 'CLDVideoPreprocessChain', 'CLDPreprocessHelpers', 'CLDVideoTranscode', 'CLDPreprocessStep']
+---
+
+## Overview
+
+The preprocessing API lets you transform an asset on the device before it leaves the app. You build a **chain** of steps, attach it to an upload call, and the SDK executes each step in sequence on a background queue before the bytes are sent to Cloudinary.
+
+This is useful for:
+
+- Capping image dimensions so you don't upload unnecessarily large files.
+- Validating dimensions or format before allowing the upload to proceed.
+- Converting a photo library asset to a specific format or quality level.
+- Transcoding a video to a different container or resolution before upload.
+
+---
+
+## How chains work
+
+`CLDPreprocessChain<T>` is the generic base class. A chain holds:
+
+- An ordered list of **steps** (`CLDPreprocessStep<T>`) — each step is a closure that receives a value of type `T` and returns a (potentially modified) value of the same type, or throws to abort the upload.
+- An optional **encoder** (`CLDResourceEncoder<T>`) — a closure that serializes the final `T` value to a temporary file URL so the SDK can read the bytes.
+
+```swift
+public typealias CLDPreprocessStep<T>    = (T) throws -> T
+public typealias CLDResourceEncoder<T>   = (T) throws -> URL?
+```
+
+You add steps with `addStep(_:)` and optionally override the encoder with `setEncoder(_:)`. Both methods return `Self` so calls can be chained.
+
+<Note>
+  Do not instantiate `CLDPreprocessChain<T>` directly. Use the concrete subclasses — `CLDImagePreprocessChain` for images and `CLDVideoPreprocessChain` for videos.
+</Note>
+
+---
+
+## Image preprocessing
+
+`CLDImagePreprocessChain` operates on `UIImage` values. It includes a default PNG encoder so you only need to call `addStep(_:)`.
+
+### Using built-in helpers
+
+`CLDPreprocessHelpers` ships a set of ready-made steps:
+
+<Steps>
+  <Step title="Create a chain">
+    ```swift
+    let chain = CLDImagePreprocessChain()
+    ```
+  </Step>
+  <Step title="Add steps">
+    ```swift
+    chain
+        .addStep(CLDPreprocessHelpers.limit(width: 1280, height: 720))
+        .addStep(CLDPreprocessHelpers.dimensionsValidator(
+            minWidth: 100, maxWidth: 4096,
+            minHeight: 100, maxHeight: 4096
+        ))
+    ```
+  </Step>
+  <Step title="Pass the chain to upload">
+    ```swift
+    uploader.signedUpload(
+        url: imageUrl,
+        params: params,
+        preprocessChain: chain
+    ) { result, error in
+        print(result?.publicId ?? error?.localizedDescription ?? "")
+    }
+    ```
+  </Step>
+</Steps>
+
+### Available helpers
+
+#### `CLDPreprocessHelpers.limit(width:height:)`
+
+Scales the image down so it fits within the given bounding box while preserving the aspect ratio. Images already within bounds are returned unchanged — this step never enlarges an image.
+
+```swift
+CLDPreprocessHelpers.limit(width: 1920, height: 1080)
+```
+
+<ParamField path="width" type="CGFloat" required>
+  Maximum allowed width in points.
+</ParamField>
+
+<ParamField path="height" type="CGFloat" required>
+  Maximum allowed height in points.
+</ParamField>
+
+#### `CLDPreprocessHelpers.dimensionsValidator(minWidth:maxWidth:minHeight:maxHeight:)`
+
+Validates that the image dimensions fall within the given bounds. If they do not, the step throws a preprocessing error and the `CLDUploadRequest` fails with that error — no bytes are sent to Cloudinary.
+
+```swift
+CLDPreprocessHelpers.dimensionsValidator(
+    minWidth:  320,
+    maxWidth:  4096,
+    minHeight: 240,
+    maxHeight: 4096
+)
+```
+
+<ParamField path="minWidth" type="Int" required>
+  Minimum acceptable width in pixels.
+</ParamField>
+
+<ParamField path="maxWidth" type="Int" required>
+  Maximum acceptable width in pixels.
+</ParamField>
+
+<ParamField path="minHeight" type="Int" required>
+  Minimum acceptable height in pixels.
+</ParamField>
+
+<ParamField path="maxHeight" type="Int" required>
+  Maximum acceptable height in pixels.
+</ParamField>
+
+#### `CLDPreprocessHelpers.crop(cropRect:)`
+
+Crops the image to the specified `CGRect`. Throws if the rectangle extends outside the image bounds.
+
+```swift
+CLDPreprocessHelpers.crop(cropRect: CGRect(x: 0, y: 0, width: 512, height: 512))
+```
+
+#### `CLDPreprocessHelpers.rotate(degrees:)`
+
+Rotates the image by the given number of degrees.
+
+```swift
+CLDPreprocessHelpers.rotate(degrees: 90)
+```
+
+### Encoding format and quality
+
+By default `CLDImagePreprocessChain` encodes to PNG at 100% quality. Override the encoder to use JPEG at a lower quality, which produces significantly smaller files:
+
+```swift
+let chain = CLDImagePreprocessChain()
+chain
+    .addStep(CLDPreprocessHelpers.limit(width: 1280, height: 720))
+    .setEncoder(CLDPreprocessHelpers.customImageEncoder(format: .JPEG, quality: 0.8))
+```
+
+`customImageEncoder(format:quality:)` accepts `EncodingFormat.JPEG` or `EncodingFormat.PNG`. The `quality` parameter is ignored for PNG (which is lossless).
+
+### Writing a custom step
+
+A step is any closure that matches `(UIImage) throws -> UIImage`. You can add application-specific logic:
+
+```swift
+let grayscaleStep: CLDPreprocessStep<UIImage> = { image in
+    let context = CIContext()
+    let filter = CIFilter(name: "CIPhotoEffectMono")!
+    filter.setValue(CIImage(image: image), forKey: kCIInputImageKey)
+    guard let output = filter.outputImage,
+          let cgImage = context.createCGImage(output, from: output.extent) else {
+        throw NSError(domain: "MyApp", code: 1, userInfo: nil)
+    }
+    return UIImage(cgImage: cgImage)
+}
+
+let chain = CLDImagePreprocessChain()
+chain.addStep(grayscaleStep)
+```
+
+### Complete example
+
+```swift
+let params = CLDUploadRequestParams()
+    .setPublicId("processed/user_photo")
+    .setTags(["processed", "ios"])
+
+let chain = CLDImagePreprocessChain()
+chain
+    .addStep(CLDPreprocessHelpers.dimensionsValidator(
+        minWidth: 200, maxWidth: 4096,
+        minHeight: 200, maxHeight: 4096
+    ))
+    .addStep(CLDPreprocessHelpers.limit(width: 1280, height: 1280))
+    .setEncoder(CLDPreprocessHelpers.customImageEncoder(format: .JPEG, quality: 0.85))
+
+uploader.signedUpload(
+    url: imageUrl,
+    params: params,
+    preprocessChain: chain,
+    progress: { progress in
+        print("Progress: \(Int(progress.fractionCompleted * 100))%")
+    },
+    completionHandler: { result, error in
+        if let error = error {
+            // Preprocessing errors arrive here too (e.g. dimension validation failure)
+            print("Failed: \(error.localizedDescription)")
+            return
+        }
+        print("Uploaded: \(result?.secureUrl ?? "")")
+    }
+)
+```
+
+---
+
+## Video preprocessing
+
+`CLDVideoPreprocessChain` operates on `CLDVideoTranscode` values. Instead of `CLDPreprocessHelpers`, use `CLDVideoPreprocessHelpers` for video-specific steps, or call the convenience methods directly on the chain.
+
+### `CLDVideoTranscode`
+
+`CLDVideoTranscode` wraps a source video URL and accumulates transcoding settings:
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `outputFormat` | `AVFileType` | `.mov` | Container format for the transcoded file. |
+| `outputDimensions` | `CGSize?` | `nil` | Output resolution. Source resolution is used when `nil`. |
+| `compressionPreset` | `String` | `AVAssetExportPresetPassthrough` | An `AVAssetExportPreset` constant controlling quality/speed trade-off. |
+
+### Available helpers
+
+#### `CLDVideoPreprocessHelpers.setOutputFormat(format:)`
+
+Changes the output container format.
+
+```swift
+CLDVideoPreprocessHelpers.setOutputFormat(format: .mp4)
+```
+
+#### `CLDVideoPreprocessHelpers.setOutputDimensions(dimensions:)`
+
+Sets the output frame size.
+
+```swift
+CLDVideoPreprocessHelpers.setOutputDimensions(dimensions: CGSize(width: 1280, height: 720))
+```
+
+#### `CLDVideoPreprocessHelpers.setCompressionPreset(preset:)`
+
+Sets the AVFoundation export preset.
+
+```swift
+CLDVideoPreprocessHelpers.setCompressionPreset(preset: AVAssetExportPresetMediumQuality)
+```
+
+#### `CLDVideoPreprocessHelpers.dimensionsValidator(minWidth:maxWidth:minHeight:maxHeight:)`
+
+Validates that `outputDimensions` is within the given bounds. Throws `VideoPreprocessError.dimensionsOutOfRange` if validation fails.
+
+```swift
+CLDVideoPreprocessHelpers.dimensionsValidator(
+    minWidth: 480, maxWidth: 3840,
+    minHeight: 270, maxHeight: 2160
+)
+```
+
+### Convenience methods on `CLDVideoPreprocessChain`
+
+`CLDVideoPreprocessChain` exposes fluent wrappers around the helpers so you can configure transcoding without building step closures manually:
+
+```swift
+let chain = CLDVideoPreprocessChain()
+chain
+    .setOutputFormat(format: .mp4)
+    .setOutputDimensions(dimensions: CGSize(width: 1280, height: 720))
+    .setCompressionPreset(preset: AVAssetExportPresetMediumQuality)
+```
+
+### Complete example
+
+```swift
+let videoUrl = URL(fileURLWithPath: "/path/to/source.mov")
+
+let params = CLDUploadRequestParams()
+    .setPublicId("videos/compressed_clip")
+
+let chain = CLDVideoPreprocessChain()
+chain
+    .setOutputFormat(format: .mp4)
+    .setOutputDimensions(dimensions: CGSize(width: 1920, height: 1080))
+    .setCompressionPreset(preset: AVAssetExportPresetHighestQuality)
+
+uploader.signedUpload(
+    url: videoUrl,
+    params: params,
+    preprocessChain: chain,
+    progress: { progress in
+        // Progress reflects both transcoding and upload
+        print("Progress: \(Int(progress.fractionCompleted * 100))%")
+    },
+    completionHandler: { result, error in
+        if let error = error {
+            print("Failed: \(error.localizedDescription)")
+            return
+        }
+        print("Video URL: \(result?.secureUrl ?? "")")
+        print("Duration : \(result?.duration ?? 0)s")
+    }
+)
+```
+
+<Warning>
+  Video transcoding runs on a background queue and may take significant time for long videos. The `progress` closure fires only after transcoding completes and the actual upload begins.
+</Warning>
+
+---
+
+## Using preprocessing with unsigned upload
+
+Preprocessing chains work identically with unsigned uploads — pass the chain alongside the upload preset:
+
+```swift
+let chain = CLDImagePreprocessChain()
+chain.addStep(CLDPreprocessHelpers.limit(width: 800, height: 800))
+
+uploader.upload(
+    url: imageUrl,
+    uploadPreset: "my_preset",
+    params: nil,
+    preprocessChain: chain
+) { result, error in
+    print(result?.publicId ?? "")
+}
+```

@@ -1,0 +1,158 @@
+---
+title: "Installation"
+description: "Add the Cloudinary iOS SDK to your project using CocoaPods, Carthage, Swift Package Manager, or as a manual submodule."
+---
+
+The Cloudinary iOS SDK supports four installation methods. All methods deliver the same SDK at version **5.2.5**, targeting **iOS 9+** and **Swift 5**.
+
+<Warning>
+  If your deployment target is iOS 8, you must use SDK version 2.x. SDK versions 3.0 and later require iOS 9 or higher.
+</Warning>
+
+<Tabs>
+  <Tab title="CocoaPods">
+    [CocoaPods](https://cocoapods.org) is a dependency manager for Swift and Objective-C Cocoa projects.
+
+    <Steps>
+      <Step title="Install CocoaPods">
+        If you don't have CocoaPods installed, run:
+
+        ```bash
+        sudo gem install cocoapods
+        ```
+      </Step>
+      <Step title="Create a Podfile">
+        If your project doesn't already have a `Podfile`, generate one:
+
+        ```bash
+        pod init
+        ```
+      </Step>
+      <Step title="Add the Cloudinary pod">
+        Open your `Podfile` and add the Cloudinary pod inside your app target:
+
+        ```ruby Podfile
+        source 'https://github.com/CocoaPods/Specs.git'
+        platform :ios, '9.0'
+        use_frameworks!
+
+        target 'MyApp' do
+          pod 'Cloudinary', '~> 5.0'
+        end
+        ```
+      </Step>
+      <Step title="Install the pod">
+        Run the install command from your project's root directory:
+
+        ```bash
+        pod install
+        ```
+
+        Open the generated `.xcworkspace` file instead of your `.xcodeproj` going forward.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Carthage">
+    [Carthage](https://github.com/Carthage/Carthage) is a decentralized dependency manager that builds your dependencies and provides you with binary frameworks.
+
+    <Steps>
+      <Step title="Create a Cartfile">
+        In your project's root directory, create a `Cartfile`:
+
+        ```bash
+        touch Cartfile
+        ```
+      </Step>
+      <Step title="Add the Cloudinary dependency">
+        Open `Cartfile` and add the following line:
+
+        ```
+        github "cloudinary/cloudinary_ios" ~> 5.0
+        ```
+      </Step>
+      <Step title="Build the framework">
+        Run the Carthage update command. The `--use-xcframeworks` flag produces XCFramework bundles that work across device and simulator:
+
+        ```bash
+        carthage update --use-xcframeworks
+        ```
+
+        After the command completes, a `Cartfile.resolved` file and a `Carthage/` directory appear next to your `.xcodeproj`.
+      </Step>
+      <Step title="Link the framework">
+        In Xcode, select your application project. Under **TARGETS**, choose your app target, open the **General** tab, and drag the built `Cloudinary.xcframework` bundle from `Carthage/Build/` into the **Frameworks and Libraries** section.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Swift Package Manager">
+    Swift Package Manager is integrated directly into Xcode and requires no additional tools.
+
+    <Steps>
+      <Step title="Open the Add Packages dialog">
+        In Xcode, go to **File → Add Packages...**
+      </Step>
+      <Step title="Enter the repository URL">
+        In the search field, paste the following URL:
+
+        ```
+        https://github.com/cloudinary/cloudinary_ios.git
+        ```
+      </Step>
+      <Step title="Select the version rule">
+        Set the dependency rule to **Up to Next Major** and enter `5.0.0` as the minimum version, then click **Add Package**.
+      </Step>
+    </Steps>
+
+    <Tip>
+      You can also add the package programmatically via `Package.swift`. The package exposes a single `Cloudinary` library product targeting iOS 9+.
+    </Tip>
+  </Tab>
+
+  <Tab title="Manual">
+    If you prefer not to use a dependency manager, you can embed the SDK directly as a git submodule and Xcode subproject.
+
+    <Steps>
+      <Step title="Initialize git (if needed)">
+        Open Terminal and navigate to your project's top-level directory. If your project is not already a git repository, initialize one:
+
+        ```bash
+        git init
+        ```
+      </Step>
+      <Step title="Add the submodule">
+        Add the Cloudinary iOS SDK as a git submodule:
+
+        ```bash
+        git submodule add https://github.com/cloudinary/cloudinary_ios.git
+        ```
+
+        This clones the repository into a `cloudinary_ios/` subdirectory.
+      </Step>
+      <Step title="Add the Xcode project">
+        Drag `cloudinary_ios/Cloudinary.xcodeproj` into the **Project Navigator** of your application's Xcode project. It should appear nested under your application's blue project icon.
+      </Step>
+      <Step title="Match the deployment target">
+        Select `Cloudinary.xcodeproj` in the Project Navigator and verify that its deployment target matches your application target's deployment target.
+      </Step>
+      <Step title="Link the framework">
+        Select your application project. Under **TARGETS**, choose your app, open the **General** tab, click the **+** button under **Embedded Binaries**, and select `Cloudinary.framework`.
+      </Step>
+    </Steps>
+
+    <Warning>
+      You are responsible for keeping the submodule updated when new SDK versions are released. Run `git submodule update --remote` to pull the latest changes.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## After installation
+
+Once the SDK is added to your project, import it at the top of any Swift file where you want to use it:
+
+```swift
+import Cloudinary
+```
+
+Then follow the [Quickstart](/quickstart) to configure your credentials and make your first upload.

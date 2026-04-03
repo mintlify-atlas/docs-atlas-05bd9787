@@ -1,0 +1,164 @@
+---
+title: 'Unsigned upload'
+description: 'Upload assets directly from a mobile client without exposing your API secret by using Cloudinary upload presets.'
+keywords: ['unsigned upload', 'upload preset', 'CLDUploader', 'unsigned']
+---
+
+## What is an unsigned upload?
+
+A signed upload requires your Cloudinary API secret, which must never be embedded in a shipped app binary. Unsigned upload solves this by delegating the trust decision to an **upload preset** — a named configuration you create in the Cloudinary console that defines allowed formats, transformations, maximum file size, and more.
+
+When a client supplies a valid preset name, Cloudinary applies the preset's rules and accepts the upload without requiring a signature. The preset acts as a server-side policy enforcer, so you remain in control even though no secret is transmitted.
+
+<Warning>
+  Upload presets are configured in the Cloudinary console under **Settings → Upload → Upload presets**. Mark the preset as **unsigned** before using it from a mobile client.
+</Warning>
+
+---
+
+## When to use unsigned upload
+
+| Scenario | Recommended approach |
+|---|---|
+| User-generated content from a mobile app | Unsigned upload with a preset |
+| Server-to-server or admin tooling | Signed upload |
+| Strict control over allowed formats and size | Unsigned upload with a preset that enforces limits |
+| Applying a fixed transformation on ingest | Unsigned upload with a preset that includes the transformation |
+
+---
+
+## Upload from a URL
+
+Pass a local or remote URL along with the preset name:
+
+```swift
+let uploader = cloudinary.createUploader()
+
+let request = uploader.upload(
+    url: fileUrl,
+    uploadPreset: "sample_preset",
+    params: nil,
+    progress: { progress in
+        print("Progress: \(Int(progress.fractionCompleted * 100))%")
+    },
+    completionHandler: { result, error in
+        if let error = error {
+            print("Upload failed: \(error.localizedDescription)")
+            return
+        }
+        print("Public ID: \(result?.publicId ?? "")")
+        print("URL: \(result?.secureUrl ?? "")")
+    }
+)
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL or a remote HTTP/HTTPS URL pointing to the resource to upload.
+</ParamField>
+
+<ParamField path="uploadPreset" type="String" required>
+  The name of the unsigned upload preset defined in your Cloudinary console.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Optional additional upload parameters. Note that unsigned uploads cannot override fields locked by the preset (for example, `overwrite` is always `false`).
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)">
+  Called periodically during the transfer with a `Progress` object.
+</ParamField>
+
+<ParamField path="completionHandler" type="(CLDUploadResult?, NSError?) -> Void">
+  Called once when the request finishes.
+</ParamField>
+
+---
+
+## Upload from Data
+
+Pass in-memory data alongside the preset name:
+
+```swift
+guard let imageData = UIImage(named: "photo")?.pngData() else { return }
+
+let request = uploader.upload(
+    data: imageData,
+    uploadPreset: "sample_preset",
+    params: nil,
+    progress: { progress in
+        print("Uploaded \(progress.completedUnitCount) / \(progress.totalUnitCount) bytes")
+    },
+    completionHandler: { result, error in
+        guard let result = result, error == nil else {
+            print("Error: \(error!.localizedDescription)")
+            return
+        }
+        print("Stored at: \(result.secureUrl ?? "")")
+    }
+)
+```
+
+---
+
+## Chaining the response closure
+
+Instead of passing a completion handler inline, you can chain `.response(_:)` on the returned `CLDUploadRequest`. This is equivalent to providing a `completionHandler` directly:
+
+```swift
+uploader
+    .upload(url: fileUrl, uploadPreset: "sample_preset")
+    .progress { progress in
+        print("\(Int(progress.fractionCompleted * 100))%")
+    }
+    .response { result, error in
+        if let result = result {
+            print("Done — \(result.publicId ?? "")")
+        }
+    }
+```
+
+<Tip>
+  You can attach multiple `.response(_:)` closures to the same request. Each will be called in the order it was added.
+</Tip>
+
+---
+
+## Adding parameters alongside a preset
+
+You can still supply a `CLDUploadRequestParams` object to set fields that the preset does not lock — for example, assigning tags or a public ID:
+
+```swift
+let params = CLDUploadRequestParams()
+    .setPublicId("user_uploads/photo_42")
+    .setTags(["mobile", "user-generated"])
+    .setContext(["caption": "Uploaded from iOS app"])
+
+uploader.upload(
+    url: fileUrl,
+    uploadPreset: "sample_preset",
+    params: params
+) { result, error in
+    print(result?.publicId ?? error?.localizedDescription ?? "")
+}
+```
+
+<Note>
+  Fields that your preset overrides — such as allowed formats, maximum file size, or eager transformations — cannot be changed by the client, regardless of what you pass in `params`.
+</Note>
+
+---
+
+## Controlling the request
+
+All unsigned upload methods return a `CLDUploadRequest`, giving you the same lifecycle controls as signed uploads:
+
+```swift
+let request = uploader.upload(url: fileUrl, uploadPreset: "sample_preset")
+
+// Cancel if the user dismisses the screen
+request.cancel()
+
+// Pause during a network interruption
+request.suspend()
+request.resume()
+```

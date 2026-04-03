@@ -1,0 +1,347 @@
+---
+title: 'CLDCloudinary'
+description: 'The main entry point for the Cloudinary iOS SDK. Use this class to configure your Cloudinary account and obtain instances of the uploader, downloader, URL builder, and management API.'
+---
+
+`CLDCloudinary` is the root SDK object. You create one instance per configuration and call its factory methods to produce the specialized sub-objects (`CLDUrl`, `CLDUploader`, `CLDDownloader`, `CLDManagementApi`).
+
+```swift
+import Cloudinary
+
+let config = CLDConfiguration(cloudName: "my-cloud", apiKey: "key", apiSecret: "secret", secure: true)
+let cloudinary = CLDCloudinary(configuration: config)
+```
+
+---
+
+## Properties
+
+### config
+
+```swift
+open fileprivate(set) var config: CLDConfiguration
+```
+
+The configuration object used by this `CLDCloudinary` instance. Set at initialization; read-only after that.
+
+---
+
+### enableUrlCache
+
+```swift
+open var enableUrlCache: Bool
+```
+
+Controls whether the SDK caches downloaded images. Defaults to `true`. Toggling this property updates the shared `CLDDownloadCoordinator` cache setting.
+
+---
+
+### cacheMaxDiskCapacity
+
+```swift
+open var cacheMaxDiskCapacity: Int
+```
+
+The maximum number of bytes the on-disk URL cache may use. Defaults to **150 MB** (`157_286_400`). Changes are applied immediately to the underlying `URLCache`.
+
+---
+
+### cacheMaxMemoryTotalCost
+
+```swift
+open var cacheMaxMemoryTotalCost: Int
+```
+
+The maximum number of bytes the in-memory URL cache may use. Defaults to **30 MB** (`31_457_280`). Changes are applied immediately to the underlying `URLCache`.
+
+---
+
+### logLevel *(static)*
+
+```swift
+public static var logLevel: CLDLogLevel
+```
+
+The minimum severity level at which SDK log messages are emitted. Defaults to `.none`. This is a type-level property shared across all `CLDCloudinary` instances.
+
+| Value | Meaning |
+|---|---|
+| `.none` | Logging disabled (default) |
+| `.debug` | Verbose debug output |
+| `.info` | Informational messages |
+| `.warning` | Non-fatal warnings |
+| `.error` | Errors only |
+
+```swift
+CLDCloudinary.logLevel = .debug
+```
+
+---
+
+## Initializers
+
+### init(configuration:networkAdapter:sessionConfiguration:)
+
+```swift
+public convenience init(
+    configuration: CLDConfiguration,
+    networkAdapter: CLDNetworkAdapter? = nil,
+    sessionConfiguration: URLSessionConfiguration? = nil
+)
+```
+
+Creates a `CLDCloudinary` instance with a single shared network adapter for both uploads and downloads.
+
+<ParamField path="configuration" type="CLDConfiguration" required>
+  The configuration object that holds your cloud name, API credentials, and URL-generation options.
+</ParamField>
+
+<ParamField path="networkAdapter" type="CLDNetworkAdapter">
+  A custom object conforming to `CLDNetworkAdapter`. When `nil`, the SDK creates a default `CLDNetworkDelegate` backed by a `URLSession`.
+</ParamField>
+
+<ParamField path="sessionConfiguration" type="URLSessionConfiguration">
+  A custom `URLSessionConfiguration` to use for the default network adapter. Ignored when `networkAdapter` is provided. When `nil`, the SDK uses the default session configuration.
+</ParamField>
+
+```swift
+let config = CLDConfiguration(cloudName: "my-cloud", secure: true)
+let cloudinary = CLDCloudinary(configuration: config)
+```
+
+---
+
+### init(configuration:networkAdapter:downloadAdapter:sessionConfiguration:downloadSessionConfiguration:)
+
+```swift
+public init(
+    configuration: CLDConfiguration,
+    networkAdapter: CLDNetworkAdapter? = nil,
+    downloadAdapter: CLDNetworkAdapter? = nil,
+    sessionConfiguration: URLSessionConfiguration? = nil,
+    downloadSessionConfiguration: URLSessionConfiguration? = nil
+)
+```
+
+Creates a `CLDCloudinary` instance with separate network adapters for upload/management traffic and download traffic. Use this overload when you need different session configurations for each concern — for example, a background session for downloads.
+
+<ParamField path="configuration" type="CLDConfiguration" required>
+  The configuration object that holds your cloud name, API credentials, and URL-generation options.
+</ParamField>
+
+<ParamField path="networkAdapter" type="CLDNetworkAdapter">
+  A custom adapter for upload and management API requests. Defaults to a `CLDNetworkDelegate` instance.
+</ParamField>
+
+<ParamField path="downloadAdapter" type="CLDNetworkAdapter">
+  A custom adapter for download requests. Defaults to a `CLDNetworkDelegate` instance.
+</ParamField>
+
+<ParamField path="sessionConfiguration" type="URLSessionConfiguration">
+  A custom session configuration for the upload/management adapter. Ignored when `networkAdapter` is provided.
+</ParamField>
+
+<ParamField path="downloadSessionConfiguration" type="URLSessionConfiguration">
+  A custom session configuration for the download adapter. Ignored when `downloadAdapter` is provided.
+</ParamField>
+
+```swift
+let config = CLDConfiguration(cloudName: "my-cloud", secure: true)
+let backgroundSession = URLSessionConfiguration.background(withIdentifier: "com.example.downloads")
+let cloudinary = CLDCloudinary(
+    configuration: config,
+    downloadSessionConfiguration: backgroundSession
+)
+```
+
+---
+
+## Factory methods
+
+### createUrl()
+
+```swift
+open func createUrl() -> CLDUrl
+```
+
+Returns a new `CLDUrl` instance pre-populated with this instance's `CLDConfiguration`. Chain setter calls on the returned object and finish with `generate(_:)` to produce a URL string.
+
+<ResponseField name="return" type="CLDUrl">
+  A new `CLDUrl` builder bound to this instance's configuration.
+</ResponseField>
+
+```swift
+let url = cloudinary.createUrl()
+    .setResourceType(.image)
+    .setFormat("webp")
+    .generate("sample")
+// => "https://res.cloudinary.com/my-cloud/image/upload/sample.webp?_a=..."
+```
+
+---
+
+### createUploader()
+
+```swift
+open func createUploader() -> CLDUploader
+```
+
+Returns a new `CLDUploader` instance that uses this instance's network coordinator.
+
+<ResponseField name="return" type="CLDUploader">
+  A new `CLDUploader` ready to accept upload requests.
+</ResponseField>
+
+```swift
+let uploader = cloudinary.createUploader()
+uploader.signedUpload(url: fileUrl, params: CLDUploadParams()) { result, error in
+    print(result?.publicId ?? "")
+}
+```
+
+---
+
+### createDownloader()
+
+```swift
+open func createDownloader() -> CLDDownloader
+```
+
+Returns a new `CLDDownloader` instance that uses this instance's download coordinator.
+
+<ResponseField name="return" type="CLDDownloader">
+  A new `CLDDownloader` ready to accept fetch and download requests.
+</ResponseField>
+
+```swift
+let downloader = cloudinary.createDownloader()
+downloader.fetchImage(url: imageUrl) { image, error in
+    imageView.image = image
+}
+```
+
+---
+
+### createManagementApi()
+
+```swift
+open func createManagementApi() -> CLDManagementApi
+```
+
+Returns a new `CLDManagementApi` instance that uses this instance's network coordinator. Requires `apiKey` and `apiSecret` to be set on the configuration.
+
+<ResponseField name="return" type="CLDManagementApi">
+  A new `CLDManagementApi` (formerly `CLDAdminApi`) ready to call admin endpoints.
+</ResponseField>
+
+```swift
+let mgmt = cloudinary.createManagementApi()
+mgmt.resourcesByTag("nature") { result, error in
+    print(result?.resources ?? [])
+}
+```
+
+---
+
+## Other methods
+
+### setMaxConcurrentDownloads(_:)
+
+```swift
+@available(iOS 8.0, *)
+open func setMaxConcurrentDownloads(_ maxConcurrentDownloads: Int)
+```
+
+Sets the maximum number of download operations that may execute concurrently. The default is `NSOperationQueueDefaultMaxConcurrentOperationCount` (system-determined).
+
+<ParamField path="maxConcurrentDownloads" type="Int" required>
+  The maximum number of simultaneous downloads. Pass `NSOperationQueueDefaultMaxConcurrentOperationCount` (`-1`) to restore the default.
+</ParamField>
+
+```swift
+cloudinary.setMaxConcurrentDownloads(3)
+```
+
+---
+
+### setBackgroundCompletionHandler(_:)
+
+```swift
+@available(iOS 8.0, *)
+open func setBackgroundCompletionHandler(_ newValue: (() -> ())?)
+```
+
+Registers the completion handler provided by `UIApplicationDelegate.application(_:handleEventsForBackgroundURLSession:completionHandler:)`. The SDK calls this handler automatically after the background URL session finishes processing its events.
+
+<ParamField path="newValue" type="(() -> ())?">
+  The completion handler supplied by UIKit, or `nil` to clear a previously registered handler. Defaults to `nil`.
+</ParamField>
+
+```swift
+// In AppDelegate:
+func application(_ application: UIApplication,
+                 handleEventsForBackgroundURLSession identifier: String,
+                 completionHandler: @escaping () -> Void) {
+    cloudinary.setBackgroundCompletionHandler(completionHandler)
+}
+```
+
+---
+
+### setUserPlatform(_:version:)
+
+```swift
+open func setUserPlatform(_ platformName: String, version: String)
+```
+
+Appends a custom platform identifier to the `User-Agent` HTTP header sent with every SDK request. By default the header is `CloudinaryiOS/<version>`. After calling this method it becomes `<platformName>/<version> CloudinaryiOS/<sdkVersion>`.
+
+<ParamField path="platformName" type="String" required>
+  The name of the platform or framework built on top of the SDK (for example, `"MyApp"` or `"ReactNative"`).
+</ParamField>
+
+<ParamField path="version" type="String" required>
+  The version string of the platform (for example, `"2.1.0"`).
+</ParamField>
+
+```swift
+cloudinary.setUserPlatform("MyFramework", version: "1.0.0")
+// User-Agent: MyFramework/1.0.0 CloudinaryiOS/3.x.x
+```
+
+---
+
+### setExtraHeaderes(_:)
+
+```swift
+open func setExtraHeaderes(_ extraHeaders: [String: String])
+```
+
+Attaches additional HTTP headers to every request made through the network coordinator. Useful for forwarding tokens or custom tracing headers.
+
+<Note>
+  The method name contains a typo (`Headeres`) inherited from the source. Use the exact spelling shown here when calling it.
+</Note>
+
+<ParamField path="extraHeaders" type="[String: String]" required>
+  A dictionary of header name–value pairs to include on all outgoing requests.
+</ParamField>
+
+```swift
+cloudinary.setExtraHeaderes([
+    "X-Request-ID": UUID().uuidString,
+    "X-App-Version": "2.5.1"
+])
+```
+
+---
+
+## Type aliases
+
+The following `typealias` declarations are defined at the module level and used throughout the SDK.
+
+| Alias | Signature | Usage |
+|---|---|---|
+| `CLDCompletionHandler` | `(UIImage?, NSError?) -> ()` | Completion block for image fetches |
+| `CLDAssetCompletionHandler` | `(Data?, NSError?) -> ()` | Completion block for raw asset fetches |
+| `CLDUploadCompletionHandler` | `(CLDUploadResult?, NSError?) -> ()` | Completion block for uploads |

@@ -1,0 +1,452 @@
+---
+title: 'Layers'
+description: 'Reference for CLDLayer, CLDTextLayer, CLDSubtitlesLayer, and CLDFetchLayer — the helper classes for adding overlays and underlays to Cloudinary transformations.'
+keywords: ['cloudinary', 'ios', 'layer', 'overlay', 'underlay', 'CLDLayer', 'CLDTextLayer', 'CLDSubtitlesLayer', 'CLDFetchLayer']
+---
+
+Layer classes build the identifier string that `setOverlayWithLayer(_:)` and `setUnderlayWithLayer(_:)` pass to the Cloudinary transformation URL. Each subclass targets a different source for the layer content.
+
+| Class | Use case |
+|---|---|
+| `CLDLayer` | An image already uploaded to your Cloudinary account. |
+| `CLDTextLayer` | A dynamically-rendered text caption. |
+| `CLDSubtitlesLayer` | A subtitle file overlaid on a video. |
+| `CLDFetchLayer` | A remotely-hosted image fetched by URL. |
+
+Pass any of these to `CLDTransformation.setOverlayWithLayer(_:)` or `setUnderlayWithLayer(_:)`:
+
+```swift
+let layer = CLDTextLayer()
+    .setFontFamily(fontFamily: "Arial")
+    .setFontSize(36)
+    .setText(text: "Hello World")
+
+CLDTransformation()
+    .setOverlayWithLayer(layer)
+    .setGravity(.south)
+    .setY(20)
+    .setColor("#ffffff")
+```
+
+---
+
+## CLDLayer
+
+```swift
+@objcMembers open class CLDLayer: NSObject
+```
+
+The base class for all layer types. Use it directly to overlay an image from your Cloudinary account.
+
+### Initializer
+
+```swift
+public override init()
+```
+
+Creates an empty layer. You must call `setPublicId(publicId:)` before using it.
+
+### Methods
+
+#### setPublicId(publicId:)
+
+Set the public ID of the Cloudinary asset to use as the layer.
+
+```swift
+@discardableResult
+open func setPublicId(publicId: String) -> CLDLayer
+```
+
+<ParamField path="publicId" type="String">
+  The public ID of the uploaded asset. Folder separators (`/`) are converted to colons (`:`) in the URL.
+</ParamField>
+
+---
+
+#### setFormat(format:)
+
+Set the file format extension for the layer asset.
+
+```swift
+@discardableResult
+open func setFormat(format: String) -> CLDLayer
+```
+
+<ParamField path="format" type="String">
+  Format extension, e.g. `"png"`, `"jpg"`. When set together with `publicId`, the URL uses `publicId.format`.
+</ParamField>
+
+---
+
+#### setResourceType(_:)
+
+Set the resource type of the layer.
+
+```swift
+@discardableResult
+open func setResourceType(_ resourceType: LayerResourceType) -> CLDLayer
+open func setResourceType(_ resourceType: String) -> CLDLayer
+```
+
+<ParamField path="resourceType" type="LayerResourceType | String">
+  One of the `LayerResourceType` enum values. Omit this if the layer is a standard uploaded image (defaults to `image`).
+</ParamField>
+
+#### LayerResourceType values
+
+| Case | URL value |
+|---|---|
+| `.image` | `image` |
+| `.raw` | `raw` |
+| `.auto` | `auto` |
+| `.text` | `text` |
+| `.subtitles` | `subtitles` |
+| `.video` | `video` |
+| `.fetch` | `fetch` |
+
+---
+
+#### setType(_:)
+
+Set the delivery type of the layer asset.
+
+```swift
+@discardableResult
+open func setType(_ type: CLDType) -> CLDLayer
+open func setType(_ rawType: String) -> CLDLayer
+```
+
+<ParamField path="type" type="CLDType | String">
+  Delivery type. Defaults to `upload`. Other valid values: `fetch`, `facebook`, `twitter`, `private`, `authenticated`.
+</ParamField>
+
+---
+
+### Example
+
+```swift
+// Overlay an uploaded watermark image
+let watermark = CLDLayer()
+    .setPublicId(publicId: "brand/watermark")
+    .setFormat(format: "png")
+
+CLDTransformation()
+    .setOverlayWithLayer(watermark)
+    .setGravity(.southEast)
+    .setOpacity(50)
+    .setX(10)
+    .setY(10)
+```
+
+---
+
+## CLDTextLayer
+
+```swift
+@objcMembers open class CLDTextLayer: CLDLayer
+```
+
+Renders a dynamic text caption as a layer. The font family and font size are required; all other text properties are optional.
+
+### Initializer
+
+```swift
+public override init()
+```
+
+Sets `resourceType` to `text` automatically.
+
+### Methods
+
+#### setText(text:)
+
+Set the text content of the caption.
+
+```swift
+open func setText(text: String) -> CLDTextLayer
+```
+
+<ParamField path="text" type="String">
+  The caption text. Special characters are URL-encoded automatically.
+</ParamField>
+
+---
+
+#### setFontFamily(fontFamily:)
+
+Set the font family.
+
+```swift
+open func setFontFamily(fontFamily: String) -> CLDTextLayer
+```
+
+<ParamField path="fontFamily" type="String">
+  Font name, e.g. `"Arial"`, `"Times New Roman"`. The font must be available on Cloudinary's rendering engine.
+</ParamField>
+
+---
+
+#### setFontSize(_:)
+
+Set the font size in pixels.
+
+```swift
+open func setFontSize(_ fontSize: Int) -> CLDTextLayer
+open func setFontSize(_ fontSize: String) -> CLDTextLayer
+```
+
+<ParamField path="fontSize" type="Int | String">
+  Font size in pixels.
+</ParamField>
+
+---
+
+#### setFontStyle(_:)
+
+Set the font style.
+
+```swift
+open func setFontStyle(_ fontStyle: CLDFontStyle) -> CLDTextLayer
+open func setFontStyle(_ fontStyle: String) -> CLDTextLayer
+```
+
+<ParamField path="fontStyle" type="CLDFontStyle | String">
+  `CLDFontStyle.normal` (default) or `CLDFontStyle.italic`.
+</ParamField>
+
+---
+
+#### setFontWeight(_:)
+
+Set the font weight.
+
+```swift
+open func setFontWeight(_ fontWeight: CLDFontWeight) -> CLDTextLayer
+open func setFontWeight(_ fontWeight: String) -> CLDTextLayer
+```
+
+<ParamField path="fontWeight" type="CLDFontWeight | String">
+  `CLDFontWeight.normal` (default) or `CLDFontWeight.bold`.
+</ParamField>
+
+---
+
+#### setTextDecoration(_:)
+
+Set the text decoration.
+
+```swift
+open func setTextDecoration(_ textDecoration: String) -> CLDTextLayer
+```
+
+<ParamField path="textDecoration" type="String">
+  `"none"` (default), `"underline"`, or `"strikethrough"`.
+</ParamField>
+
+---
+
+#### setTextAlign(_:)
+
+Set the text alignment for multi-line captions.
+
+```swift
+open func setTextAlign(_ textAlign: String) -> CLDTextLayer
+```
+
+<ParamField path="textAlign" type="String">
+  `"left"` (default), `"center"`, `"right"`, `"end"`, `"start"`, or `"justify"`.
+</ParamField>
+
+---
+
+#### setStroke(_:)
+
+Set the font stroke (outline border).
+
+```swift
+open func setStroke(_ stroke: String) -> CLDTextLayer
+```
+
+<ParamField path="stroke" type="String">
+  `"none"` (default) or `"stroke"`. Use `CLDTransformation.setBorder(_:color:)` to control the stroke width and color.
+</ParamField>
+
+---
+
+#### setLetterSpacing(_:)
+
+Set the spacing between letters in pixels.
+
+```swift
+open func setLetterSpacing(_ letterSpacing: Int) -> CLDTextLayer
+open func setLetterSpacing(_ letterSpacing: Float) -> CLDTextLayer
+open func setLetterSpacing(_ letterSpacing: String) -> CLDTextLayer
+```
+
+<ParamField path="letterSpacing" type="Int | Float | String">
+  Letter spacing in pixels. Positive values increase spacing; negative values decrease it.
+</ParamField>
+
+---
+
+#### setLineSpacing(_:)
+
+Set the spacing between lines in pixels. Applies only to multi-line text.
+
+```swift
+open func setLineSpacing(_ lineSpacing: Int) -> CLDTextLayer
+open func setLineSpacing(_ lineSpacing: Float) -> CLDTextLayer
+open func setLineSpacing(_ lineSpacing: String) -> CLDTextLayer
+```
+
+<ParamField path="lineSpacing" type="Int | Float | String">
+  Line spacing in pixels. Positive or negative values are accepted.
+</ParamField>
+
+---
+
+#### setFontAntialiasing(_:)
+
+Set the antialiasing method for text rendering.
+
+```swift
+open func setFontAntialiasing(_ antialiasing: String) -> CLDTextLayer
+open func setFontAntialiasing(_ antialiasing: CLDTextLayer.CLDFontAntialiasing) -> CLDTextLayer
+```
+
+<ParamField path="antialiasing" type="CLDFontAntialiasing | String">
+  One of the `CLDFontAntialiasing` enum values.
+</ParamField>
+
+#### CLDFontAntialiasing values
+
+| Case | Raw value | Description |
+|---|---|---|
+| `.NONE` | `none` | No antialiasing; bi-level alpha mask. |
+| `.GRAY` | `gray` | Single-color antialiasing (shades of gray). |
+| `.SUBPIXEL` | `subpixel` | LCD subpixel antialiasing. |
+| `.FAST` | `fast` | Fast antialiasing, lower quality. |
+| `.GOOD` | `good` | Balanced quality and speed. |
+| `.BEST` | `best` | Highest quality, slowest rendering. |
+
+---
+
+#### setFontHinting(_:)
+
+Set the hinting method for text rendering.
+
+```swift
+open func setFontHinting(_ hinting: String) -> CLDTextLayer
+open func setFontHinting(_ hinting: CLDTextLayer.CLDFontHinting) -> CLDTextLayer
+```
+
+<ParamField path="hinting" type="CLDFontHinting | String">
+  One of the `CLDFontHinting` enum values.
+</ParamField>
+
+#### CLDFontHinting values
+
+| Case | Raw value | Description |
+|---|---|---|
+| `.NONE` | `none` | Do not hint outlines. |
+| `.SLIGHT` | `slight` | Slight hinting; retains shape fidelity while improving contrast. |
+| `.MEDIUM` | `medium` | Medium hinting; balances fidelity and contrast. |
+| `.FULL` | `full` | Full hinting; maximises contrast. |
+
+---
+
+### Example
+
+```swift
+let caption = CLDTextLayer()
+    .setFontFamily(fontFamily: "Roboto")
+    .setFontSize(48)
+    .setFontWeight(.bold)
+    .setFontStyle(.italic)
+    .setTextDecoration("underline")
+    .setTextAlign("center")
+    .setLetterSpacing(2)
+    .setFontAntialiasing(.best)
+    .setText(text: "Summer Sale")
+
+CLDTransformation()
+    .setColor("#ffffff")
+    .setOverlayWithLayer(caption)
+    .setGravity(.south)
+    .setY(40)
+```
+
+<Tip>
+  When `setStroke("stroke")` is set, use `CLDTransformation.setBorder(_:color:)` on the same transformation step to control the stroke width and color.
+</Tip>
+
+---
+
+## CLDSubtitlesLayer
+
+```swift
+@objcMembers open class CLDSubtitlesLayer: CLDTextLayer
+```
+
+`CLDSubtitlesLayer` overlays a subtitle file onto a video. It inherits all of `CLDTextLayer`'s font styling methods, which control how the subtitle text is rendered.
+
+### Initializer
+
+```swift
+public override init()
+```
+
+Sets `resourceType` to `subtitles` automatically. You must set the public ID of the subtitle file with `setPublicId(publicId:)`.
+
+### Example
+
+```swift
+let subtitles = CLDSubtitlesLayer()
+    .setPublicId(publicId: "my_video_subtitles.srt")
+    .setFontFamily(fontFamily: "Arial")
+    .setFontSize(24)
+
+CLDTransformation()
+    .setOverlayWithLayer(subtitles)
+    .setGravity(.south)
+```
+
+<Note>
+  The subtitle file must be uploaded to your Cloudinary account as a `raw` resource before it can be referenced here.
+</Note>
+
+---
+
+## CLDFetchLayer
+
+```swift
+@objcMembers open class CLDFetchLayer: CLDLayer
+```
+
+`CLDFetchLayer` fetches a remotely-hosted image and uses it as an overlay or underlay. The URL is base64-URL-encoded automatically.
+
+### Initializer
+
+```swift
+public init(url: String)
+```
+
+<ParamField path="url" type="String">
+  The fully-qualified URL of the remote image, e.g. `"https://example.com/logo.png"`. The URL is base64-URL-encoded and set as the public ID; `resourceType` is set to `fetch` automatically.
+</ParamField>
+
+### Example
+
+```swift
+let remoteLogo = CLDFetchLayer(url: "https://example.com/logo.png")
+
+CLDTransformation()
+    .setOverlayWithLayer(remoteLogo)
+    .setWidth(100)
+    .setGravity(.northEast)
+    .setOpacity(80)
+```
+
+<Tip>
+  For images that you control, prefer uploading them to Cloudinary and using `CLDLayer` instead of `CLDFetchLayer`. Fetching remote images on every request adds latency and depends on the availability of the remote server.
+</Tip>

@@ -1,0 +1,255 @@
+---
+title: 'URL generation'
+description: 'Build Cloudinary delivery URLs for images, videos, and raw files using CLDUrl.'
+keywords: ['CLDUrl', 'generate', 'URL signing', 'resource type', 'transformation URL', 'iOS']
+---
+
+`CLDUrl` builds Cloudinary delivery URLs on the client without making any network requests. You create a `CLDUrl` instance through your `CLDCloudinary` object, configure it with a chain of setter calls, then call `generate(_:)` to produce the final string URL.
+
+## Create a CLDUrl
+
+Use the factory method on your `CLDCloudinary` instance. `CLDUrl` captures the configuration from your `CLDCloudinary` object so you do not need to pass credentials manually.
+
+```swift
+let url = cloudinary.createUrl().generate("sample.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/sample.jpg
+```
+
+<Note>
+  `generate(_:)` returns an optional `String?`. It returns `nil` if the transformation is invalid or if `signUrl` is `true` but no `apiSecret` is configured.
+</Note>
+
+## The generate method
+
+```swift
+open func generate(_ publicId: String, signUrl: Bool = false) -> String?
+```
+
+You can either call `generate(_:)` with a public ID directly, or set the public ID with `setPublicId(_:)` and call the no-argument form:
+
+```swift
+// Option 1 — pass public ID to generate
+let url = cloudinary.createUrl().generate("folder/my-image.jpg")
+
+// Option 2 — set public ID separately
+let cldUrl = cloudinary.createUrl()
+cldUrl.setPublicId("folder/my-image.jpg")
+let url = cldUrl.generate()
+```
+
+When the public ID contains a folder path (e.g. `"folder/image"`), the SDK automatically injects `/v1/` into the URL unless you call `setVersion(_:)` or disable this with `setForceVersion(false)`.
+
+## Resource types
+
+Set the resource type to match the kind of asset you are delivering. The default is `.image`.
+
+```swift
+// Image (default)
+cloudinary.createUrl()
+    .setResourceType(.image)
+    .generate("sample.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/sample.jpg
+
+// Video
+cloudinary.createUrl()
+    .setResourceType(.video)
+    .generate("dog.mp4")
+// https://res.cloudinary.com/my-cloud/video/upload/dog.mp4
+
+// Raw file (PDF, ZIP, etc.)
+cloudinary.createUrl()
+    .setResourceType(.raw)
+    .generate("report.pdf")
+// https://res.cloudinary.com/my-cloud/raw/upload/report.pdf
+```
+
+| `CLDUrlResourceType` | URL segment | Use for |
+|----------------------|-------------|---------|
+| `.image` | `image` | Images (default) |
+| `.video` | `video` | Videos and audio |
+| `.raw` | `raw` | Binary files, PDFs, ZIP archives |
+| `.auto` | `auto` | Let Cloudinary detect the type |
+
+## URL types
+
+The type describes the asset's media source. The default is `.upload` (an asset stored in your Cloudinary account).
+
+```swift
+// Fetch an external image by URL
+cloudinary.createUrl()
+    .setType(.fetch)
+    .generate("https://example.com/photo.jpg")
+// https://res.cloudinary.com/my-cloud/image/fetch/https://example.com/photo.jpg
+
+// Facebook profile picture
+cloudinary.createUrl()
+    .setType(.facebook)
+    .generate("billclinton.jpg")
+// https://res.cloudinary.com/my-cloud/image/facebook/billclinton.jpg
+```
+
+<AccordionGroup>
+  <Accordion title="All CLDType values">
+    | `CLDType` case | URL segment | Description |
+    |----------------|-------------|-------------|
+    | `.upload` | `upload` | Uploaded asset (default) |
+    | `.fetch` | `fetch` | Fetch and cache from a remote URL |
+    | `.facebook` | `facebook` | Facebook profile photo by name or ID |
+    | `.twitter` | `twitter` | Twitter profile photo by numeric ID |
+    | `.twitterName` | `twitter_name` | Twitter profile photo by screen name |
+    | `.sprite` | `sprite` | Generated CSS sprite |
+    | `.private` | `private` | Privately stored upload |
+    | `.authenticated` | `authenticated` | Access-controlled upload |
+  </Accordion>
+</AccordionGroup>
+
+## Setting format, version, and suffix
+
+### Format
+
+Appending a format overrides the file extension in the generated URL:
+
+```swift
+cloudinary.createUrl()
+    .setFormat("webp")
+    .generate("sample.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/sample.webp
+```
+
+For `.fetch` type URLs, `setFormat` is applied as a `fetch_format` transformation parameter instead of a file extension.
+
+### Version
+
+Pin the URL to a specific asset version to bust CDN caches after an update:
+
+```swift
+cloudinary.createUrl()
+    .setVersion("1609459200")
+    .generate("sample.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/v1609459200/sample.jpg
+```
+
+### Suffix (private CDN only)
+
+A suffix appends a human-readable string after the public ID in private CDN URLs. Supported for `image/upload`, `image/private`, and `raw/upload` only. The suffix must not contain `.` or `/`.
+
+```swift
+cloudinary.createUrl()
+    .setSuffix("my-photo")
+    .generate("xkcd42")
+// https://my-cloud-res.cloudinary.com/images/xkcd42/my-photo
+```
+
+## Applying transformations
+
+Chain a `CLDTransformation` onto the URL with `setTransformation(_:)`. See [Transformations](/guides/transformations) for the full parameter reference.
+
+```swift
+let transformation = CLDTransformation()
+    .setWidth(400)
+    .setHeight(300)
+    .setCrop(.fill)
+    .setGravity(.face)
+
+let url = cloudinary.createUrl()
+    .setTransformation(transformation)
+    .generate("portrait.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/c_fill,g_face,h_300,w_400/portrait.jpg
+```
+
+## Signed URLs
+
+Pass `signUrl: true` to `generate(_:signUrl:)` to append a signature computed from the transformation string and your `apiSecret`. You must have `apiSecret` set in your `CLDConfiguration`.
+
+```swift
+let config = CLDConfiguration(
+    cloudName: "my-cloud",
+    apiKey: "key",
+    apiSecret: "secret",
+    signatureAlgorithm: .sha256
+)
+let cloudinary = CLDCloudinary(configuration: config)
+
+let url = cloudinary.createUrl()
+    .setTransformation(CLDTransformation().setWidth(200).setCrop(.scale))
+    .generate("sample.jpg", signUrl: true)
+// https://res.cloudinary.com/my-cloud/image/upload/s--XXXXXXXX--/c_scale,w_200/sample.jpg
+```
+
+<Warning>
+  Never enable URL signing in client-facing builds that distribute your `apiSecret`. Consider signing URLs on your server and passing the final URL to the client instead.
+</Warning>
+
+The signature algorithm is set in `CLDConfiguration`:
+
+| Algorithm | Signature length | `CLDConfiguration` param |
+|-----------|-----------------|--------------------------|
+| SHA-1 (default) | 8 characters | `signatureAlgorithm: .sha1` |
+| SHA-256 | 8 characters | `signatureAlgorithm: .sha256` |
+| Long SHA-256 | 32 characters | `longUrlSignature: true` |
+
+## Shorten URLs and root paths
+
+### Shortened URLs
+
+For `image/upload` assets, you can use a shortened `iu` path segment:
+
+```swift
+cloudinary.createUrl()
+    .setShortenUrl(true)
+    .generate("sample.jpg")
+// https://res.cloudinary.com/my-cloud/iu/sample.jpg
+```
+
+### Root path (private CDN)
+
+For `image/upload` assets on a private CDN, omit the `image/upload` segment entirely:
+
+```swift
+cloudinary.createUrl()
+    .setUseRootPath(true)
+    .generate("sample.jpg")
+// https://my-cloud-res.cloudinary.com/sample.jpg
+```
+
+## Force version behavior
+
+By default, the SDK adds `/v1/` to URLs when the public ID contains a folder path and no explicit version is set. Disable this with `setForceVersion(false)`:
+
+```swift
+cloudinary.createUrl()
+    .setForceVersion(false)
+    .generate("folder/image.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/folder/image.jpg
+// (no /v1/ injected)
+```
+
+## Full example
+
+```swift
+import Cloudinary
+
+let config = CLDConfiguration(cloudName: "my-cloud", secure: true)
+let cloudinary = CLDCloudinary(configuration: config)
+
+// Thumbnail with face detection crop
+let thumbTransformation = CLDTransformation()
+    .setWidth(120)
+    .setHeight(120)
+    .setCrop(.thumb)
+    .setGravity(.face)
+    .setQuality(.auto())
+
+let thumbUrl = cloudinary.createUrl()
+    .setTransformation(thumbTransformation)
+    .setFormat("webp")
+    .generate("users/avatar_42.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/c_thumb,g_face,h_120,q_auto,w_120/v1/users/avatar_42.webp
+
+// Video with resource type
+let videoUrl = cloudinary.createUrl()
+    .setResourceType(.video)
+    .setTransformation(CLDTransformation().setWidth(720).setCrop(.scale))
+    .generate("product-demo.mp4")
+// https://res.cloudinary.com/my-cloud/video/upload/c_scale,w_720/product-demo.mp4
+```

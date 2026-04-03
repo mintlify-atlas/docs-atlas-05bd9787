@@ -1,97 +1,77 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Cloudinary iOS SDK"
+description: "Upload, transform, optimize, and deliver images and videos in your iOS app with Cloudinary."
 ---
 
-## Setting up
+The Cloudinary iOS SDK gives you a complete media management toolkit for Swift and Objective-C applications. Connect to your Cloudinary account to upload assets, generate optimized CDN URLs with on-the-fly transformations, and display images and videos with built-in caching and responsiveness.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Add the SDK via CocoaPods, Carthage, Swift Package Manager, or manually.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get from zero to uploading and displaying your first image in minutes.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Transformations" icon="wand-magic-sparkles" href="/guides/transformations">
+    Resize, crop, apply effects, and chain transformations on the fly.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="API Reference" icon="code" href="/api-reference/cldcloudinary">
+    Explore the full public API surface for every SDK class.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Get started in 3 steps
 
-Everything you need to create world-class documentation.
+<Steps>
+  <Step title="Install the SDK">
+    Add Cloudinary to your project using your preferred dependency manager.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+    ```ruby Podfile
+    pod 'Cloudinary', '~> 5.0'
+    ```
+  </Step>
+  <Step title="Configure your credentials">
+    Create a `CLDConfiguration` with your Cloudinary cloud name and API key, then initialize `CLDCloudinary`.
 
-## Need inspiration?
+    ```swift
+    let config = CLDConfiguration(cloudName: "YOUR_CLOUD_NAME", apiKey: "YOUR_API_KEY")
+    let cloudinary = CLDCloudinary(configuration: config)
+    ```
+  </Step>
+  <Step title="Upload and display">
+    Upload a file and generate a transformed URL for display.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+    ```swift
+    // Upload a file
+    cloudinary.createUploader().upload(file: fileUrl, params: nil)
+
+    // Generate a 300x300 fill crop URL
+    let url = cloudinary.createUrl()
+        .setTransformation(CLDTransformation().setWidth(300).setHeight(300).setCrop(.fill))
+        .generate("sample.jpg")
+    ```
+  </Step>
+</Steps>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Upload" icon="cloud-arrow-up" href="/guides/upload-basics">
+    Signed and unsigned uploads with progress callbacks, cancellation, background sessions, and chunked large-file support.
+  </Card>
+  <Card title="URL generation" icon="link" href="/guides/url-generation">
+    Build Cloudinary CDN URLs with transformations, signatures, versioning, and custom domains.
+  </Card>
+  <Card title="Image view" icon="image" href="/guides/image-view">
+    `CLDUIImageView` loads images asynchronously with built-in caching and responsive breakpoints.
+  </Card>
+  <Card title="Video player" icon="play" href="/guides/video-player">
+    `CLDVideoPlayer` is an AVPlayer subclass with automatic streaming profiles and analytics.
+  </Card>
+  <Card title="Upload widget" icon="window" href="/guides/upload-widget">
+    Drop-in UI widget for picking, cropping, and uploading images and videos.
+  </Card>
+  <Card title="Management API" icon="gear" href="/guides/management-api">
+    Rename, delete, tag, and manage assets directly from your iOS app.
+  </Card>
+</CardGroup>

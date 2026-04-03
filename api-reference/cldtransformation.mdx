@@ -1,0 +1,1157 @@
+---
+title: 'CLDTransformation'
+description: 'Build image and video transformations for Cloudinary delivery URLs using the CLDTransformation class.'
+keywords: ['cloudinary', 'ios', 'transformation', 'CLDTransformation', 'crop', 'resize', 'effect']
+---
+
+`CLDTransformation` represents a full set of transformations applied on-the-fly by Cloudinary to an image or video asset. Each setter method returns `Self`, so you can chain calls in a fluent style.
+
+```swift
+let transformation = CLDTransformation()
+    .setWidth(800)
+    .setHeight(600)
+    .setCrop(.fill)
+    .setGravity(.face)
+    .setQuality(.auto())
+```
+
+When passed to a URL builder, the transformation is serialised as a slash-separated string of comma-separated parameter pairs:
+
+```
+w_800,h_600,c_fill,g_face,q_auto
+```
+
+---
+
+## Initializers
+
+```swift
+public init()
+public init(input: [CLDTransformation])
+```
+
+| Initializer | Description |
+|---|---|
+| `init()` | Creates an empty transformation. |
+| `init(input:)` | Combines an array of `CLDTransformation` objects by chaining them together. |
+
+---
+
+## Read-only properties
+
+The following properties return the current string value of the corresponding parameter, or `nil` if it has not been set.
+
+| Property | Type | URL param |
+|---|---|---|
+| `width` | `String?` | `w` |
+| `height` | `String?` | `h` |
+| `named` | `String?` | `t` |
+| `crop` | `String?` | `c` |
+| `background` | `String?` | `b` |
+| `color` | `String?` | `co` |
+| `effect` | `String?` | `e` |
+| `angle` | `String?` | `a` |
+| `opacity` | `String?` | `o` |
+| `border` | `String?` | `bo` |
+| `x` | `String?` | `x` |
+| `y` | `String?` | `y` |
+| `radius` | `String?` | `r` |
+| `quality` | `String?` | `q` |
+| `defaultImage` | `String?` | `d` |
+| `gravity` | `String?` | `g` |
+| `colorSpace` | `String?` | `cs` |
+| `prefix` | `String?` | `p` |
+| `overlay` | `String?` | `l` |
+| `underlay` | `String?` | `u` |
+| `fetchFormat` | `String?` | `f` |
+| `density` | `String?` | `dn` |
+| `page` | `String?` | `pg` |
+| `delay` | `String?` | `dl` |
+| `flags` | `String?` | `fl` |
+| `dpr` | `String?` | `dpr` |
+| `zoom` | `String?` | `z` |
+| `aspectRatio` | `String?` | `ar` |
+| `customFunction` | `String?` | `fn` |
+| `customPreFunction` | `String?` | `fn` (with `pre:` prefix) |
+| `audioCodec` | `String?` | `ac` |
+| `audioFrequency` | `String?` | `af` |
+| `bitRate` | `String?` | `br` |
+| `videoSampling` | `String?` | `vs` |
+| `duration` | `String?` | `du` |
+| `startOffset` | `String?` | `so` |
+| `endOffset` | `String?` | `eo` |
+| `offset` | `[String]?` | — |
+| `videoCodec` | `String?` | `vc` |
+| `fps` | `String?` | `fps` |
+| `keyframeInterval` | `String?` | `ki` |
+| `streamingProfile` | `String?` | `sp` |
+| `variables` | `String?` | `variables` |
+| `ifParam` | `String?` | `if` |
+| `rawTransformation` | `String?` | `raw_transformation` |
+
+---
+
+## Setter methods
+
+All setter methods are marked `@discardableResult` and return `Self`, enabling fluent chaining.
+
+<AccordionGroup>
+
+<Accordion title="Dimensions">
+
+### setWidth
+
+Set the output width in pixels.
+
+```swift
+open func setWidth(_ width: Int) -> Self
+open func setWidth(_ width: Float) -> Self
+open func setWidth(_ width: String) -> Self
+open func setWidth(_ input: CLDExpression) -> Self
+```
+
+<ParamField path="width" type="Int | Float | String | CLDExpression">
+  The desired width. Pass a `CLDExpression` to use a dynamic value such as `CLDExpression.width().multiple(by: 0.5)`.
+</ParamField>
+
+---
+
+### setHeight
+
+Set the output height in pixels.
+
+```swift
+open func setHeight(_ height: Int) -> Self
+open func setHeight(_ height: Float) -> Self
+open func setHeight(_ height: String) -> Self
+open func setHeight(_ input: CLDExpression) -> Self
+```
+
+<ParamField path="height" type="Int | Float | String | CLDExpression">
+  The desired height.
+</ParamField>
+
+---
+
+### setAspectRatio
+
+Resize or crop the asset to a new aspect ratio. Use together with a crop mode.
+
+```swift
+open func setAspectRatio(_ aspectRatio: Float) -> Self
+open func setAspectRatio(_ aspectRatio: String) -> Self
+open func setAspectRatio(nominator: Int, denominator: Int) -> Self
+```
+
+<ParamField path="aspectRatio" type="Float | String">
+  A decimal ratio (`1.5`) or ratio string (`"16:9"`).
+</ParamField>
+
+```swift
+// 16:9 aspect ratio with fill crop
+CLDTransformation()
+    .setAspectRatio(nominator: 16, denominator: 9)
+    .setCrop(.fill)
+```
+
+---
+
+### setZoom
+
+Control how much of the original image surrounding a detected face to keep when using `crop` or `thumb` mode with face detection. Default is `1.0`.
+
+```swift
+open func setZoom(_ zoom: Float) -> Self
+open func setZoom(_ zoom: String) -> Self
+```
+
+<ParamField path="zoom" type="Float | String">
+  Zoom factor. Values greater than `1.0` show more surrounding context; values less than `1.0` zoom into the face.
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Cropping">
+
+### setCrop
+
+Set the crop mode. Use the `CLDCrop` enum or a raw string.
+
+```swift
+open func setCrop(_ crop: CLDCrop) -> Self
+open func setCrop(_ crop: String) -> Self
+```
+
+<ParamField path="crop" type="CLDCrop | String">
+  The crop mode to apply.
+</ParamField>
+
+#### CLDCrop values
+
+| Case | URL value | Description |
+|---|---|---|
+| `.fill` | `fill` | Resize and crop to the exact requested dimensions, keeping as much of the asset as possible. |
+| `.crop` | `crop` | Extract a region of the given width and height from the original asset. |
+| `.scale` | `scale` | Scale the asset to the given dimensions. Both dimensions are scaled. |
+| `.fit` | `fit` | Scale the asset to fit entirely within the bounding box, preserving aspect ratio. |
+| `.limit` | `limit` | Like `fit` but only if the original is larger than the requested dimensions. |
+| `.mFit` | `mfit` | Like `fit` but only downscales. |
+| `.lFill` | `lfill` | Like `fill` but only if the original is larger than the requested dimensions. |
+| `.pad` | `pad` | Scale and pad to the exact dimensions. |
+| `.lPad` | `lpad` | Like `pad` but only if the original is larger. |
+| `.mPad` | `mpad` | Like `pad` but only downscales. |
+| `.thumb` | `thumb` | Smart thumbnail generation using face detection. |
+| `.imaggaCrop` | `imagga_crop` | Crop using the Imagga add-on. |
+| `.imaggaScale` | `imagga_scale` | Scale using the Imagga add-on. |
+
+```swift
+CLDTransformation()
+    .setWidth(300)
+    .setHeight(300)
+    .setCrop(.fill)
+    .setGravity(.face)
+```
+
+</Accordion>
+
+<Accordion title="Gravity">
+
+### setGravity
+
+Decide which part of the asset to keep when cropping or padding.
+
+```swift
+open func setGravity(_ gravity: CLDGravity) -> Self
+open func setGravity(_ gravity: String) -> Self
+```
+
+<ParamField path="gravity" type="CLDGravity | String">
+  The gravity anchor point.
+</ParamField>
+
+#### CLDGravity values
+
+| Case | URL value | Description |
+|---|---|---|
+| `.center` | `center` | Center of the image (default). |
+| `.auto` | `auto` | Automatic gravity using AI content analysis. |
+| `.face` | `face` | Focus on the largest face detected. |
+| `.faceCenter` | `face:center` | Largest face, centered. |
+| `.faces` | `faces` | Focus on all faces detected. |
+| `.facesCenter` | `faces:center` | All faces, centered. |
+| `.advFace` | `adv_face` | Advanced single-face detection. |
+| `.advFaces` | `adv_faces` | Advanced multi-face detection. |
+| `.advEyes` | `adv_eyes` | Focus on detected eyes. |
+| `.north` | `north` | Top center. |
+| `.northWest` | `north_west` | Top left. |
+| `.northEast` | `north_east` | Top right. |
+| `.south` | `south` | Bottom center. |
+| `.southWest` | `south_west` | Bottom left. |
+| `.southEast` | `south_east` | Bottom right. |
+| `.east` | `east` | Center right. |
+| `.west` | `west` | Center left. |
+| `.xyCenter` | `xy_center` | Use `x` and `y` as the center point. |
+| `.custom` | `custom` | Use custom coordinates set at upload time. |
+| `.customFace` | `custom:face` | Custom coordinates with face detection fallback. |
+| `.customFaces` | `custom:faces` | Custom coordinates with multi-face detection fallback. |
+| `.customAdvFace` | `custom:adv_face` | Custom coordinates with advanced face detection fallback. |
+| `.customAdvFaces` | `custom:adv_faces` | Custom coordinates with advanced multi-face detection fallback. |
+| `.autoOcrText` | `auto:ocr_text` | Auto gravity based on OCR text regions. |
+| `.ocrText` | `ocr_text` | Focus on detected text regions. |
+| `.ocrTextAdvOcr` | `ocr_text:adv_ocr` | Advanced OCR-based gravity. |
+
+</Accordion>
+
+<Accordion title="Quality and format">
+
+### setQuality
+
+Control the compression quality of the output asset.
+
+```swift
+open func setQuality(_ quality: CLDQuality) -> Self
+open func setQuality(_ quality: String) -> Self
+```
+
+<ParamField path="quality" type="CLDQuality | String">
+  A `CLDQuality` configuration object or a raw quality string.
+</ParamField>
+
+Use the `CLDQuality` factory methods:
+
+| Method | URL value | Description |
+|---|---|---|
+| `CLDQuality.fixed(_ level: Int)` | `q_<level>` | Fixed quality level from 1 (lowest) to 100 (highest). |
+| `CLDQuality.auto()` | `q_auto` | Cloudinary selects the optimal quality automatically. |
+| `CLDQuality.auto(.best)` | `q_auto:best` | Least aggressive automatic optimisation. |
+| `CLDQuality.auto(.good)` | `q_auto:good` | Balanced automatic optimisation. |
+| `CLDQuality.auto(.eco)` | `q_auto:eco` | More aggressive automatic optimisation. |
+| `CLDQuality.auto(.low)` | `q_auto:low` | Most aggressive automatic optimisation (smallest files). |
+| `CLDQuality.jpegMini()` | `q_jpegmini` | Uses the JPEGmini add-on. |
+
+```swift
+CLDTransformation().setQuality(.auto(.good))
+CLDTransformation().setQuality(.fixed(85))
+```
+
+<Note>
+  `setQuality(_ quality: Int)` is deprecated. Use `CLDQuality.fixed(_:)` instead.
+</Note>
+
+---
+
+### setFetchFormat
+
+Force format conversion for remote `fetch` URLs and auto-uploaded images whose URL already contains a format.
+
+```swift
+open func setFetchFormat(_ fetchFormat: String) -> Self
+```
+
+<ParamField path="fetchFormat" type="String">
+  Target format, e.g. `"webp"`, `"avif"`, `"jpg"`.
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Effects">
+
+### setEffect
+
+Apply an image effect or filter.
+
+```swift
+open func setEffect(_ effect: CLDEffect) -> Self
+open func setEffect(_ effect: CLDArtFilters) -> CLDTransformation
+open func setEffect(_ effect: CLDEffect, param: String) -> Self
+open func setEffect(_ effect: String, param: String) -> Self
+open func setEffect(_ effect: String) -> Self
+```
+
+<ParamField path="effect" type="CLDEffect | CLDArtFilters | String">
+  The effect to apply. Use `CLDEffect` or `CLDArtFilters` for type safety, or pass a raw string.
+</ParamField>
+
+<ParamField path="param" type="String">
+  An optional parameter for effects that accept a numeric strength or qualifier (e.g. blur strength, sepia level).
+</ParamField>
+
+#### CLDEffect values
+
+| Case | URL value |
+|---|---|
+| `.hue` | `hue` |
+| `.red` | `red` |
+| `.green` | `green` |
+| `.blue` | `blue` |
+| `.negate` | `negate` |
+| `.brightness` | `brightness` |
+| `.sepia` | `sepia` |
+| `.grayscale` | `grayscale` |
+| `.blackwhite` | `blackwhite` |
+| `.saturation` | `saturation` |
+| `.colorize` | `colorize` |
+| `.contrast` | `contrast` |
+| `.autoContrast` | `auto_contrast` |
+| `.vibrance` | `vibrance` |
+| `.autoColor` | `auto_color` |
+| `.improve` | `improve` |
+| `.autoBrightness` | `auto_brightness` |
+| `.fillLight` | `fill_light` |
+| `.viesusCorrect` | `viesus_correct` |
+| `.gamma` | `gamma` |
+| `.screen` | `screen` |
+| `.multiply` | `multiply` |
+| `.overlay` | `overlay` |
+| `.makeTransparent` | `make_transparent` |
+| `.trim` | `trim` |
+| `.shadow` | `shadow` |
+| `.distort` | `distort` |
+| `.shear` | `shear` |
+| `.displace` | `displace` |
+| `.oilPaint` | `oil_paint` |
+| `.redeye` | `redeye` |
+| `.advRedeye` | `adv_redeye` |
+| `.vignette` | `vignette` |
+| `.gradientFade` | `gradient_fade` |
+| `.pixelate` | `pixelate` |
+| `.pixelateRegion` | `pixelate_region` |
+| `.pixelateFaces` | `pixelate_faces` |
+| `.blur` | `blur` |
+| `.blurRegion` | `blur_region` |
+| `.blurFaces` | `blur_faces` |
+| `.sharpen` | `sharpen` |
+| `.unsharpMask` | `unsharp_mask` |
+| `.orderedDither` | `ordered_dither` |
+| `.art` | `art` |
+| `.assistColorblind` | `assist_colorblind` |
+| `.preview` | `preview` |
+
+#### CLDArtFilters values
+
+Pass an art filter using `setEffect(_ effect: CLDArtFilters)`. Available filters:
+
+`alDente`, `athena`, `audrey`, `aurora`, `daguerre`, `eucalyptus`, `fes`, `frost`, `hairspray`, `hokusai`, `incognito`, `linen`, `peacock`, `primavera`, `quartz`, `redRock`, `refresh`, `sizzle`, `sonnet`, `ukulele`, `zorro`
+
+```swift
+CLDTransformation().setEffect(.blur, param: "500")
+CLDTransformation().setEffect(.aurora)
+CLDTransformation().setEffect("sepia", param: "50")
+```
+
+---
+
+### setAngle
+
+Rotate or flip an asset. Pass a degree value or an automatic rotation mode string.
+
+```swift
+open func setAngle(_ angle: Int) -> Self
+open func setAngle(_ angle: String) -> Self
+open func setAngle(_ angles: [String]) -> Self
+```
+
+<ParamField path="angle" type="Int | String | [String]">
+  Degrees to rotate (e.g. `90`, `-45`) or a mode string such as `"auto"`, `"vflip"`, `"hflip"`, `"ignore"`. Pass an array to apply multiple modes separated by `.` in the URL.
+</ParamField>
+
+---
+
+### setRadius
+
+Round the corners of an image, or make it circular/oval.
+
+```swift
+open func setRadius(_ radius: Int) -> Self
+open func setRadius(_ radius: String) -> Self
+open func setRadius(_ radius: [Any]) -> Self
+open func setRadius(_ input: CLDExpression) -> Self
+```
+
+<ParamField path="radius" type="Int | String | [Any] | CLDExpression">
+  Corner radius in pixels. Use `"max"` for a circle or ellipse. Pass an array of up to four values to set each corner individually (top-left, top-right, bottom-right, bottom-left).
+</ParamField>
+
+---
+
+### setOpacity
+
+Set the opacity of the asset. `100` is fully opaque; `0` is fully transparent.
+
+```swift
+open func setOpacity(_ opacity: Int) -> Self
+open func setOpacity(_ opacity: String) -> Self
+```
+
+<ParamField path="opacity" type="Int | String">
+  Opacity level from `0` to `100`.
+</ParamField>
+
+---
+
+### setBackground
+
+Set the background color used when converting to JPEG or when the `pad` crop mode leaves empty space.
+
+```swift
+open func setBackground(_ background: String) -> Self
+```
+
+<ParamField path="background" type="String">
+  A named color (`"green"`), RGB hex triplet (`"#3e2222"` converted to `rgb:3e2222`), or a 3-character RGB hex (`"#777"`). You can also pass `"auto"` to use Cloudinary's automatic background detection.
+</ParamField>
+
+---
+
+### setColor
+
+Set the color for text captions, the shadow effect, and the colorize effect.
+
+```swift
+open func setColor(_ color: String) -> Self
+```
+
+<ParamField path="color" type="String">
+  A named color, RGB hex triplet, or 3-character RGB hex. The leading `#` is automatically converted to `rgb:`.
+</ParamField>
+
+---
+
+### setBorder
+
+Add a solid border around the asset.
+
+```swift
+open func setBorder(_ width: Int, color: String) -> Self
+open func setBorder(_ border: String) -> Self
+```
+
+<ParamField path="width" type="Int">
+  Border width in pixels.
+</ParamField>
+
+<ParamField path="color" type="String">
+  Border color as a named color or hex value.
+</ParamField>
+
+<ParamField path="border" type="String">
+  A raw border string in the form `<width>px_solid_<color>`, e.g. `"5px_solid_red"`.
+</ParamField>
+
+```swift
+CLDTransformation().setBorder(3, color: "#ff0000")
+CLDTransformation().setBorder("5px_solid_green")
+```
+
+</Accordion>
+
+<Accordion title="Position">
+
+### setX
+
+Set the horizontal offset for overlay/underlay placement or custom-coordinate-based cropping.
+
+```swift
+open func setX(_ x: Int) -> Self
+open func setX(_ x: Float) -> Self
+open func setX(_ x: String) -> Self
+open func setX(_ input: CLDExpression) -> Self
+```
+
+<ParamField path="x" type="Int | Float | String | CLDExpression">
+  Horizontal position in pixels from the anchor point determined by `gravity`.
+</ParamField>
+
+---
+
+### setY
+
+Set the vertical offset for overlay/underlay placement or custom-coordinate-based cropping.
+
+```swift
+open func setY(_ y: Int) -> Self
+open func setY(_ y: Float) -> Self
+open func setY(_ y: String) -> Self
+open func setY(_ input: CLDExpression) -> Self
+```
+
+<ParamField path="y" type="Int | Float | String | CLDExpression">
+  Vertical position in pixels from the anchor point.
+</ParamField>
+
+---
+
+### setTopLeftPoint
+
+Convenience method to set `x` and `y` from a `CGPoint`.
+
+```swift
+open func setTopLeftPoint(_ point: CGPoint) -> Self
+```
+
+</Accordion>
+
+<Accordion title="Overlays and underlays">
+
+### setOverlay
+
+Add an overlay on top of the base asset.
+
+```swift
+open func setOverlay(_ overlay: String) -> Self
+open func setOverlayWithLayer(_ layer: CLDLayer) -> Self
+```
+
+<ParamField path="overlay" type="String">
+  The overlay identifier string, e.g. a public ID or a formatted text/fetch layer string.
+</ParamField>
+
+<ParamField path="layer" type="CLDLayer">
+  A `CLDLayer`, `CLDTextLayer`, `CLDSubtitlesLayer`, or `CLDFetchLayer` instance. See the [layer reference](/api-reference/layers).
+</ParamField>
+
+```swift
+// Image overlay
+let layer = CLDLayer().setPublicId(publicId: "watermark")
+CLDTransformation()
+    .setOverlayWithLayer(layer)
+    .setGravity(.southEast)
+    .setOpacity(60)
+
+// Text overlay
+let textLayer = CLDTextLayer()
+    .setFontFamily(fontFamily: "Arial")
+    .setFontSize(40)
+    .setText(text: "Hello World")
+
+CLDTransformation()
+    .setOverlayWithLayer(textLayer)
+    .setGravity(.south)
+    .setY(20)
+```
+
+---
+
+### setUnderlay
+
+Add an underlay image below a partially-transparent base asset.
+
+```swift
+open func setUnderlay(_ underlay: String) -> Self
+open func setUnderlayWithLayer(_ layer: CLDLayer) -> Self
+```
+
+<ParamField path="underlay" type="String">
+  The underlay identifier string.
+</ParamField>
+
+<ParamField path="layer" type="CLDLayer">
+  A `CLDLayer` instance.
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Video">
+
+### setVideoCodec
+
+Set the video codec. You can pass `"auto"` to let Cloudinary choose.
+
+```swift
+open func setVideoCodec(_ videoCodec: String) -> Self
+```
+
+<ParamField path="videoCodec" type="String">
+  Codec string such as `"h264"`, `"h265"`, `"vp8"`, `"vp9"`, or `"auto"`.
+</ParamField>
+
+---
+
+### setVideoCodecAndProfileAndLevel
+
+Set the video codec along with a profile and optional level.
+
+```swift
+open func setVideoCodecAndProfileAndLevel(
+    _ videoCodec: String,
+    videoProfile: String,
+    level: String? = nil
+) -> Self
+```
+
+<ParamField path="videoCodec" type="String">
+  The codec, e.g. `"h264"`.
+</ParamField>
+
+<ParamField path="videoProfile" type="String">
+  The profile, e.g. `"baseline"`, `"main"`, `"high"`.
+</ParamField>
+
+<ParamField path="level" type="String?">
+  Optional level string, e.g. `"3.1"`.
+</ParamField>
+
+---
+
+### setVideoCodecAndProfileAndLevelAndBFrames
+
+Like `setVideoCodecAndProfileAndLevel`, with an additional option to disable B-frames.
+
+```swift
+open func setVideoCodecAndProfileAndLevelAndBFrames(
+    _ videoCodec: String,
+    videoProfile: String,
+    level: String? = nil,
+    bframes: Bool? = nil
+) -> Self
+```
+
+<ParamField path="bframes" type="Bool?">
+  Pass `false` to append `bframes_no` to the codec parameter.
+</ParamField>
+
+---
+
+### setAudioCodec
+
+Set the audio codec or remove the audio track.
+
+```swift
+open func setAudioCodec(_ audioCodec: String) -> Self
+```
+
+<ParamField path="audioCodec" type="String">
+  `"none"` removes audio. `"aac"` (mp4/flv), `"vorbis"` (ogv/webm), and `"mp3"` (mp4/flv) are supported.
+</ParamField>
+
+---
+
+### setAudioFrequency
+
+Control the audio sampling frequency in Hz.
+
+```swift
+open func setAudioFrequency(_ audioFrequency: Int) -> Self
+open func setAudioFrequency(_ audioFrequency: String) -> Self
+```
+
+<ParamField path="audioFrequency" type="Int | String">
+  Frequency in Hz, e.g. `44100`, `22050`.
+</ParamField>
+
+---
+
+### setVideoSampling
+
+Control how many frames are sampled when converting video to animated GIF or WebP.
+
+```swift
+open func setVideoSampling(frames: Int) -> Self
+open func setVideoSampling(delay: Float) -> Self
+open func setVideoSampling(_ videoSampling: String) -> Self
+```
+
+<ParamField path="frames" type="Int">
+  Total number of frames to sample, spread evenly across the video duration.
+</ParamField>
+
+<ParamField path="delay" type="Float">
+  Delay between frames in seconds. A suffix `s` is appended automatically.
+</ParamField>
+
+---
+
+### setBitRate
+
+Control the video bit rate.
+
+```swift
+open func setBitRate(_ bitRate: Int) -> Self
+open func setBitRate(kb bitRate: Int) -> Self
+open func setBitRate(_ bitRate: String) -> Self
+```
+
+<ParamField path="bitRate" type="Int | String">
+  Bit rate as an integer (bits), a kilobit integer via the `kb:` label, or a string with an `k`/`m` suffix such as `"500k"` or `"2m"`.
+</ParamField>
+
+---
+
+### setStreamingProfile
+
+Set a Cloudinary streaming profile for adaptive bitrate streaming.
+
+```swift
+open func setStreamingProfile(_ streamingProfile: String) -> Self
+```
+
+<ParamField path="streamingProfile" type="String">
+  Profile name, e.g. `"hd"`, `"full_hd"`, `"4k"`.
+</ParamField>
+
+---
+
+### setFps
+
+Set the output frames per second. For simple values, pass a `Float` or `String`. For ranges, use `CLDFps`.
+
+```swift
+open func setFps(_ fps: CLDFps) -> Self
+open func setFps(_ fps: String) -> Self
+open func setFps(_ fps: Float) -> Self
+```
+
+#### CLDFps factory methods
+
+| Method | Example URL value | Description |
+|---|---|---|
+| `CLDFps.fromFloat(_ fps: Float)` | `fps_25` | Fixed frame rate. |
+| `CLDFps.fromString(_ fps: String)` | `fps_25` | Fixed frame rate from string. |
+| `CLDFps.range(start:end:)` | `fps_24-30` | Frame rate range (start or end may be omitted). |
+
+```swift
+CLDTransformation().setFps(25.0)
+CLDTransformation().setFps(CLDFps.range(start: 24.0, end: 30.0))
+```
+
+---
+
+### setStartOffset
+
+Trim the video from the given start position.
+
+```swift
+open func setStartOffset(seconds: Float) -> Self
+open func setStartOffset(percent: Int) -> Self
+open func setStartOffset(_ duration: String) -> Self
+open func setStartOffset(_ input: CLDExpression) -> Self
+```
+
+<ParamField path="seconds" type="Float">
+  Start position in seconds.
+</ParamField>
+
+<ParamField path="percent" type="Int">
+  Start position as a percentage of the video duration. A `p` suffix is appended automatically.
+</ParamField>
+
+---
+
+### setEndOffset
+
+Trim the video at the given end position.
+
+```swift
+open func setEndOffset(seconds: Float) -> Self
+open func setEndOffset(percent: Int) -> Self
+open func setEndOffset(_ duration: String) -> Self
+open func setEndOffset(_ input: CLDExpression) -> Self
+```
+
+---
+
+### setStartOffsetAndEndOffset
+
+Convenience shortcut to set start and end offsets together.
+
+```swift
+open func setStartOffsetAndEndOffset(startSeconds: Float, endSeconds: Float) -> Self
+open func setStartOffsetAndEndOffset(startPercent: Int, endPercent: Int) -> Self
+```
+
+---
+
+### setDuration
+
+Set the duration for which the video (or an overlay) displays.
+
+```swift
+open func setDuration(seconds: Float) -> Self
+open func setDuration(percent: Int) -> Self
+open func setDuration(_ duration: String) -> Self
+```
+
+---
+
+### setKeyframeInterval
+
+Set the keyframe interval for video encoding.
+
+```swift
+open func setKeyframeInterval(interval: Float) -> Self
+open func setKeyframeInterval(_ interval: String) -> Self
+```
+
+</Accordion>
+
+<Accordion title="Miscellaneous parameters">
+
+### setNamed
+
+Reference one or more named transformations by name.
+
+```swift
+open func setNamed(_ names: String) -> Self
+open func setNamed(_ names: [String]) -> Self
+```
+
+<ParamField path="names" type="String | [String]">
+  The name(s) of the pre-defined named transformation(s). Multiple names are joined with `.` in the URL.
+</ParamField>
+
+---
+
+### setDefaultImage
+
+Specify a fallback image public ID to use if the requested asset does not exist.
+
+```swift
+open func setDefaultImage(_ defaultImage: String) -> Self
+```
+
+---
+
+### setColorSpace
+
+Set the color space for the transformation.
+
+```swift
+open func setColorSpace(_ colorSpace: String) -> Self
+```
+
+---
+
+### setDpr
+
+Deliver the asset at the specified device pixel ratio.
+
+```swift
+open func setDpr(_ dpr: Float) -> Self
+open func setDpr(_ dpr: String) -> Self
+```
+
+---
+
+### setDprAuto
+
+Sets the DPR using the current device's screen scale (`UIScreen.main.scale`). Defined in `CLDTransformation+Ios.swift` as a convenience wrapper around `setDpr(_:)`.
+
+```swift
+open func setDprAuto() -> Self
+```
+
+```swift
+// Automatically uses 2.0 on a @2x Retina display
+CLDTransformation().setDprAuto()
+// → dpr_2.0
+```
+
+---
+
+### setDensity
+
+Set the DPI density used when converting a PDF to images. Valid range is 50–300; default is 150.
+
+```swift
+open func setDensity(_ density: Int) -> Self
+open func setDensity(_ density: String) -> Self
+```
+
+---
+
+### setPage
+
+Select a single page from a multi-page file (PDF, animated GIF, or TIFF).
+
+```swift
+open func setPage(_ page: Int) -> Self
+open func setPage(_ page: String) -> Self
+```
+
+---
+
+### setDelay
+
+Set the time delay between frames of an animated image, in milliseconds.
+
+```swift
+open func setDelay(_ delay: Int) -> Self
+open func setDelay(_ delay: String) -> Self
+```
+
+---
+
+### setFlags
+
+Apply one or more transformation flags that alter default behavior.
+
+```swift
+open func setFlags(_ flags: String) -> Self
+open func setFlags(_ flags: [String]) -> Self
+```
+
+<ParamField path="flags" type="String | [String]">
+  Flag name(s). Multiple flags are joined with `.` in the URL.
+</ParamField>
+
+---
+
+### setPrefix
+
+Set the transformation prefix.
+
+```swift
+open func setPrefix(_ prefix: String) -> Self
+```
+
+---
+
+### setRawTransformation
+
+Append a raw transformation string. Must conform to the Cloudinary transformation URL syntax.
+
+```swift
+open func setRawTransformation(_ rawTransformation: String) -> Self
+```
+
+---
+
+### setCustomFunction
+
+Invoke a custom function such as a WebAssembly module or a remote Lambda function.
+
+```swift
+open func setCustomFunction(_ customFunction: CLDCustomFunction) -> Self
+open func setCustomPreFunction(_ customPreFunction: CLDCustomFunction) -> Self
+```
+
+#### CLDCustomFunction factory methods
+
+| Method | Description |
+|---|---|
+| `CLDCustomFunction.wasm(_ publicId: String)` | Call a WebAssembly function identified by its public ID. |
+| `CLDCustomFunction.remote(_ url: String)` | Call a remote Lambda function at the given URL (base64-URL-encoded automatically). |
+
+</Accordion>
+
+<Accordion title="Variables">
+
+### setVariable
+
+Define a user variable for use in expressions within the same transformation.
+
+```swift
+public func setVariable(_ name: String, int value: Int) -> Self
+public func setVariable(_ name: String, float value: Float) -> Self
+public func setVariable(_ name: String, string value: String) -> Self
+public func setVariable(_ name: String, values: [String]) -> Self
+public func setVariable(_ variable: CLDVariable) -> Self
+```
+
+<ParamField path="name" type="String">
+  The variable name. Must start with `$` followed by a letter and alphanumeric characters only. The `$` prefix is added automatically if omitted.
+</ParamField>
+
+<ParamField path="value" type="Int | Float | String | [String]">
+  The variable value. A string array is serialised as a Cloudinary list literal.
+</ParamField>
+
+---
+
+### setVariables
+
+Set multiple variables at once.
+
+```swift
+public func setVariables(_ variables: [CLDVariable]) -> Self
+```
+
+```swift
+let widthVar = CLDVariable(name: "myWidth", value: 300)
+CLDTransformation().setVariable(widthVar).setWidth("$myWidth")
+```
+
+</Accordion>
+
+<Accordion title="Conditional transformations">
+
+### ifCondition
+
+Apply a condition to the current transformation step. Only the transformations after `then()` execute when the condition is true.
+
+```swift
+public func ifCondition(_ condition: String) -> Self
+public func ifCondition(_ condition: CLDConditionExpression) -> Self
+public func ifCondition() -> CLDConditionExpression
+```
+
+Use the fluent form to build conditions inline:
+
+```swift
+CLDTransformation()
+    .ifCondition()
+        .width(">", 1000)
+    .then()
+        .setWidth(800)
+        .setCrop(.scale)
+    .endIf()
+```
+
+---
+
+### ifElse
+
+Add an `else` branch to a conditional transformation.
+
+```swift
+public func ifElse() -> Self
+```
+
+---
+
+### endIf
+
+Close a conditional transformation block.
+
+```swift
+public func endIf() -> Self
+```
+
+```swift
+CLDTransformation()
+    .ifCondition(CLDConditionExpression.width().greater(then: 1000))
+        .setWidth(800)
+        .setCrop(.scale)
+    .chain()
+    .ifElse()
+        .setWidth(400)
+        .setCrop(.scale)
+    .endIf()
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## chain()
+
+Call `chain()` to finalize the current set of transformation parameters and start a new transformation step. Each step becomes a `/`-separated segment in the final URL.
+
+```swift
+@discardableResult
+open func chain() -> Self
+```
+
+```swift
+let transformation = CLDTransformation()
+    .setWidth(800)
+    .setHeight(600)
+    .setCrop(.fill)
+    .chain()           // → first URL segment: w_800,h_600,c_fill
+    .setEffect(.sepia) // → second URL segment: e_sepia
+
+// Produces: w_800,h_600,c_fill/e_sepia
+print(transformation.asString() ?? "")
+```
+
+---
+
+## asString()
+
+Serialize the full transformation to a URL parameter string.
+
+```swift
+public func asString() -> String?
+```
+
+Returns `nil` if any parameter contains an empty key or value.
+
+---
+
+## CLDEagerTransformation
+
+`CLDEagerTransformation` extends `CLDTransformation` and adds a `setFormat` method for specifying the output format when creating eager transformations at upload time.
+
+```swift
+open class CLDEagerTransformation: CLDTransformation
+```
+
+### setFormat
+
+```swift
+open func setFormat(_ format: String?) -> Self
+```
+
+<ParamField path="format" type="String?">
+  The output format extension, e.g. `"jpg"`, `"webp"`, `"mp4"`. Appended as a `/format` suffix after the transformation string.
+</ParamField>
+
+```swift
+let eager = CLDEagerTransformation()
+    .setWidth(800)
+    .setCrop(.fill)
+    .setFormat("webp")
+// Produces: w_800,c_fill/webp
+```

@@ -1,0 +1,62 @@
+---
+title: "Introduction"
+description: "The Cloudinary iOS SDK gives you a complete media management toolkit for Swift apps: upload assets, apply on-the-fly transformations, and deliver through a global CDN."
+---
+
+The Cloudinary iOS SDK integrates Cloudinary's media pipeline directly into your Swift (and Objective-C) application. With a few lines of code you can upload images and video from any source, generate optimized CDN delivery URLs with server-side transformations, and display the result with built-in caching and async loading.
+
+## What you can build
+
+<CardGroup cols={2}>
+  <Card title="Upload images and video" icon="cloud-arrow-up" href="/guides/upload-basics">
+    Upload files from local paths, remote URLs, or raw `Data`. Signed and unsigned uploads are both supported, with progress callbacks, cancellation, and resumable chunked transfer for large files.
+  </Card>
+  <Card title="Transform and optimize assets" icon="wand-magic-sparkles" href="/guides/transformations">
+    Resize, crop, apply effects, and convert formats by composing `CLDTransformation` parameters. Transformations are encoded into the delivery URL and executed by Cloudinary's servers at request time.
+  </Card>
+  <Card title="Deliver through a CDN" icon="link" href="/guides/url-generation">
+    `CLDUrl` builds signed or unsigned Cloudinary CDN URLs with full control over resource type, format, version, and custom delivery domains.
+  </Card>
+  <Card title="Display with async caching" icon="image" href="/guides/image-view">
+    `CLDDownloader` fetches remote images asynchronously and caches them in memory (30 MB default) and on disk (150 MB default). UIImageView, UIButton, and UIView extensions let you load images with a single method call.
+  </Card>
+</CardGroup>
+
+## Key classes
+
+| Class | Purpose |
+|---|---|
+| `CLDConfiguration` | Holds your cloud name, API key, and optional delivery settings |
+| `CLDCloudinary` | Root object — factory for all SDK operations |
+| `CLDUploader` | Signed and unsigned upload, chunked large-file upload |
+| `CLDUrl` | Builds Cloudinary CDN delivery URLs |
+| `CLDDownloader` | Async image fetching with memory and disk cache |
+| `CLDTransformation` | Fluent builder for Cloudinary transformation parameters |
+
+## Version support
+
+| SDK version | iOS 9+ | iOS 8 |
+|---|---|---|
+| 3.0.0 – 5.x.x | Supported | Not supported |
+| 2.0.0 – 2.10.1 | Supported | Supported |
+
+<Note>
+  The current release is **5.2.5**, targeting iOS 9 and Swift 5. If your deployment target is iOS 8, use SDK version 2.x.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Add the SDK to your project with CocoaPods, Carthage, Swift Package Manager, or manually.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Walk through a complete upload, transform, and display example in minutes.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Explore all `CLDConfiguration` options including private CDN, custom domains, and signatures.
+  </Card>
+  <Card title="API reference" icon="code" href="/api-reference/cldcloudinary">
+    Full public API surface for every SDK class.
+  </Card>
+</CardGroup>

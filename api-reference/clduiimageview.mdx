@@ -1,0 +1,230 @@
+---
+title: 'CLDUIImageView'
+description: 'A UIImageView subclass that downloads and caches Cloudinary-hosted images asynchronously, with built-in responsive scaling.'
+---
+
+`CLDUIImageView` is a `UIImageView` subclass that fetches an image from Cloudinary, stores it in the shared URL cache, and sets it as the view's image — all on the main thread. Its responsive mode automatically selects an image size that matches the view's layout dimensions, reducing bandwidth and improving rendering sharpness on high-density screens.
+
+<Note>
+  `CLDUIImageView` requires iOS 9.0 or later. Call `cldSetImage` only from the main thread.
+</Note>
+
+```swift
+import Cloudinary
+import UIKit
+
+let config = CLDConfiguration(cloudName: "my-cloud", secure: true)
+let cloudinary = CLDCloudinary(configuration: config)
+
+let imageView = CLDUIImageView()
+imageView.cldSetImage(
+    publicId: "sample",
+    cloudinary: cloudinary,
+    responsiveParams: .fit()
+)
+```
+
+---
+
+## cldSetImage(publicId:cloudinary:signUrl:resourceType:responsiveParams:transformation:placeholder:)
+
+```swift
+public func cldSetImage(
+    publicId: String,
+    cloudinary: CLDCloudinary,
+    signUrl: Bool = false,
+    resourceType: CLDUrlResourceType = .image,
+    responsiveParams: CLDResponsiveParams,
+    transformation: CLDTransformation? = nil,
+    placeholder: UIImage? = nil
+)
+```
+
+Downloads an image asynchronously and sets it on the image view. If the image exists in the URL cache it is returned immediately without a network request. The actual download is deferred until the view knows its own size — that is, until `layoutSubviews` reports non-zero bounds.
+
+<ParamField path="publicId" type="String" required>
+  The public ID of the Cloudinary asset to load — for example, `"landscape/mountain"`. Do not include a file extension.
+</ParamField>
+
+<ParamField path="cloudinary" type="CLDCloudinary" required>
+  The configured `CLDCloudinary` instance used to generate the image URL and perform the download.
+</ParamField>
+
+<ParamField path="signUrl" type="Bool" default="false">
+  When `true`, the SDK generates a signed URL using your API secret. Use this when the asset is access-controlled. Requires `apiSecret` to be set on the `CLDConfiguration`.
+</ParamField>
+
+<ParamField path="resourceType" type="CLDUrlResourceType" default=".image">
+  The Cloudinary resource type. Pass `.video` to fetch a video thumbnail frame. Defaults to `.image`.
+</ParamField>
+
+<ParamField path="responsiveParams" type="CLDResponsiveParams" required>
+  Configuration for responsive image loading. The SDK reads the view's current bounds and selects an appropriately sized image. See [CLDResponsiveParams](#cldresponsiveparams) below.
+</ParamField>
+
+<ParamField path="transformation" type="CLDTransformation?">
+  A `CLDTransformation` to apply before the responsive scaling step. The responsive transformation is chained after this base transformation. Defaults to `nil`.
+</ParamField>
+
+<ParamField path="placeholder" type="UIImage?">
+  A local image displayed immediately while the asynchronous request is in flight. Defaults to `nil`.
+</ParamField>
+
+---
+
+## CLDResponsiveParams
+
+`CLDResponsiveParams` controls how `CLDUIImageView` selects and scales the image to match the view's rendered size. The SDK rounds the view's content area up to the nearest `stepSize` point value, clamps it within `[minDimension, maxDimension]`, and appends width, height, and DPR parameters to the Cloudinary transformation URL.
+
+### Presets
+
+Two factory methods cover the most common use cases:
+
+```swift
+// Scale image to fit entirely within the view — no cropping
+let params = CLDResponsiveParams.fit()
+
+// Fill the view completely, cropping with auto gravity
+let params = CLDResponsiveParams.autoFill()
+```
+
+| Preset | Auto width | Auto height | Crop | Gravity |
+|---|---|---|---|---|
+| `.fit()` | `true` | `true` | `fit` | — |
+| `.autoFill()` | `true` | `true` | `fill` | `auto` |
+
+### Custom configuration
+
+```swift
+public init(
+    autoWidth: Bool,
+    autoHeight: Bool,
+    cropMode: CLDTransformation.CLDCrop?,
+    gravity: CLDTransformation.CLDGravity?
+)
+```
+
+Create a custom instance when you need control over which dimensions are responsive:
+
+```swift
+let params = CLDResponsiveParams(
+    autoWidth: true,
+    autoHeight: false,
+    cropMode: .crop,
+    gravity: .face
+)
+```
+
+### Chainable setters
+
+All setters return `Self`, so you can chain them:
+
+```swift
+let params = CLDResponsiveParams.fit()
+    .setStepSize(100)
+    .setMinDimension(100)
+    .setMaxDimension(1200)
+    .setReloadOnSizeChange(true)
+```
+
+<ParamField path="setStepSize(_:)" type="Int" default="50">
+  The granularity used to round up the view's content dimension before requesting an image. A step of `50` means the SDK requests images at 50, 100, 150, … point widths. Smaller values increase precision but reduce cache hit rates.
+</ParamField>
+
+<ParamField path="setMinDimension(_:)" type="Int" default="50">
+  The minimum image dimension (in points) that the SDK will request, regardless of the view's actual size.
+</ParamField>
+
+<ParamField path="setMaxDimension(_:)" type="Int" default="350">
+  The maximum image dimension (in points) that the SDK will request, regardless of the view's actual size.
+</ParamField>
+
+<ParamField path="setReloadOnSizeChange(_:)" type="Bool" default="false">
+  When `true`, the SDK re-fetches a larger image if the view grows beyond the dimensions used for the original request. When `false`, the initial image is kept even if the view is later resized to be larger.
+</ParamField>
+
+---
+
+## Cache behavior
+
+`CLDUIImageView` uses the shared `URLCache` configured on `CLDCloudinary`:
+
+- **Memory cache** — defaults to 30 MB. Hits return immediately without disk I/O.
+- **Disk cache** — defaults to 150 MB. Hits avoid a network round trip.
+- Setting `cloudinary.enableUrlCache = false` disables both caches.
+
+Adjust capacities before loading any images:
+
+```swift
+cloudinary.cacheMaxMemoryTotalCost = 50 * 1024 * 1024  // 50 MB
+cloudinary.cacheMaxDiskCapacity    = 200 * 1024 * 1024 // 200 MB
+```
+
+---
+
+## Usage example
+
+```swift
+import Cloudinary
+import UIKit
+
+class GalleryViewController: UIViewController {
+
+    let cloudinary: CLDCloudinary = {
+        let config = CLDConfiguration(cloudName: "my-cloud", secure: true)
+        return CLDCloudinary(configuration: config)
+    }()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        let imageView = CLDUIImageView(frame: CGRect(x: 0, y: 0, width: 320, height: 240))
+        imageView.contentMode = .scaleAspectFit
+        view.addSubview(imageView)
+
+        let params = CLDResponsiveParams.autoFill()
+            .setStepSize(100)
+            .setMaxDimension(1000)
+            .setReloadOnSizeChange(true)
+
+        let transformation = CLDTransformation().setQuality("auto").setFetchFormat("auto")
+
+        imageView.cldSetImage(
+            publicId: "landscape/mountain",
+            cloudinary: cloudinary,
+            responsiveParams: params,
+            transformation: transformation,
+            placeholder: UIImage(named: "placeholder")
+        )
+    }
+}
+```
+
+---
+
+## CLDResponsiveViewHelper
+
+If you need responsive image loading in a custom `UIView` that does not subclass `CLDUIImageView`, use `CLDResponsiveViewHelper` directly. Instantiate it as a property of your view, call `cldSetImage(view:publicId:cloudinary:...)` when you want to load an image, and call `onViewSizeKnown(view:)` from your view's `layoutSubviews` override once bounds are non-zero.
+
+```swift
+class MyCustomView: UIView {
+    private let responsiveHelper = CLDResponsiveViewHelper()
+    private var imageView: UIImageView = UIImageView()
+
+    func loadImage(publicId: String, cloudinary: CLDCloudinary) {
+        responsiveHelper.cldSetImage(
+            view: imageView,
+            publicId: publicId,
+            cloudinary: cloudinary,
+            responsiveParams: .fit()
+        )
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if bounds.width > 0 && bounds.height > 0 {
+            responsiveHelper.onViewSizeKnown(view: imageView)
+        }
+    }
+}
+```

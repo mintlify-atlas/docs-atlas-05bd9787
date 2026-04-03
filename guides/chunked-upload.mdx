@@ -1,0 +1,189 @@
+---
+title: 'Chunked upload'
+description: 'Upload large video and image files reliably by splitting them into chunks with uploadLarge.'
+keywords: ['chunked upload', 'large file', 'uploadLarge', 'CLDUploader', 'chunk size']
+---
+
+## Overview
+
+For large files — particularly long videos — sending a single HTTP request is risky. A network interruption means starting the entire transfer again. `CLDUploader` provides `uploadLarge` methods that automatically split a local file into fixed-size chunks, upload each chunk sequentially with a shared upload ID, and reassemble them server-side into a single asset.
+
+<Note>
+  Chunked upload only applies to **local file URLs**. If you pass a remote URL, `uploadLarge` falls back to a standard single-request upload automatically.
+</Note>
+
+---
+
+## When to use chunked upload
+
+| Condition | Recommendation |
+|---|---|
+| File size is under ~100 MB and network is reliable | Standard `signedUpload` or `upload` |
+| File size is large (e.g. long-form video) | `signedUploadLarge` or `uploadLarge` |
+| You need resumable semantics across network changes | `uploadLarge` with a preserved `CLDUploadRequest` |
+
+---
+
+## Default chunk size
+
+`CLDUploader` exposes the default chunk size as a public constant:
+
+```swift
+CLDUploader.defaultChunkSize  // 20 * 1024 * 1024 = 20 MB
+```
+
+The minimum permitted chunk size is **5 MB**. Passing a smaller value results in an immediate error on the returned `CLDUploadRequest`.
+
+---
+
+## Signed chunked upload
+
+Use `signedUploadLarge(url:params:chunkSize:progress:completionHandler:)` for server-authenticated large-file uploads:
+
+```swift
+let uploader = cloudinary.createUploader()
+let videoUrl = URL(fileURLWithPath: "/path/to/large_video.mp4")
+
+let params = CLDUploadRequestParams()
+    .setPublicId("videos/long_form_content")
+    .setTags(["video", "long-form"])
+
+let request = uploader.signedUploadLarge(
+    url: videoUrl,
+    params: params,
+    chunkSize: CLDUploader.defaultChunkSize,    // 20 MB per chunk
+    progress: { progress in
+        let percent = Int(progress.fractionCompleted * 100)
+        print("Overall progress: \(percent)%")
+    },
+    completionHandler: { result, error in
+        if let error = error {
+            print("Upload failed: \(error.localizedDescription)")
+            return
+        }
+        print("Done — public ID: \(result?.publicId ?? "")")
+        print("Duration: \(result?.duration ?? 0) seconds")
+    }
+)
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL. Remote URLs fall back to a single-request upload.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams" default="CLDUploadRequestParams()">
+  Upload parameters applied to all chunks. A new `CLDUploadRequestParams()` is used if omitted.
+</ParamField>
+
+<ParamField path="chunkSize" type="Int" default="CLDUploader.defaultChunkSize">
+  Size in bytes for each chunk. Must be at least `5 * 1024 * 1024` (5 MB). Defaults to 20 MB.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)">
+  Called periodically as chunks are uploaded. The `Progress` object reflects the total transfer across all chunks.
+</ParamField>
+
+<ParamField path="completionHandler" type="CLDUploadCompletionHandler?">
+  Called once when all chunks have been uploaded and the server has assembled the final asset. Equivalent to `(CLDUploadResult?, NSError?) -> Void`.
+</ParamField>
+
+---
+
+## Unsigned chunked upload
+
+For client-side uploads without an API secret, supply an upload preset:
+
+```swift
+let request = uploader.uploadLarge(
+    url: videoUrl,
+    uploadPreset: "my_video_preset",
+    params: CLDUploadRequestParams(),
+    chunkSize: 10 * 1024 * 1024,    // 10 MB per chunk
+    progress: { progress in
+        print("Progress: \(Int(progress.fractionCompleted * 100))%")
+    },
+    completionHandler: { result, error in
+        print(result?.secureUrl ?? error?.localizedDescription ?? "")
+    }
+)
+```
+
+---
+
+## Choosing a chunk size
+
+<Tip>
+  Use the default 20 MB chunk size for most cases. Smaller chunks reduce the cost of a failed chunk retransmission but increase overhead from additional HTTP round-trips.
+</Tip>
+
+```swift
+// Default — good for most scenarios
+let request = uploader.signedUploadLarge(url: videoUrl, params: params)
+
+// Smaller chunks — useful on unreliable mobile connections
+let request = uploader.signedUploadLarge(
+    url: videoUrl,
+    params: params,
+    chunkSize: 5 * 1024 * 1024     // 5 MB minimum
+)
+
+// Larger chunks — fewer round-trips on fast Wi-Fi
+let request = uploader.signedUploadLarge(
+    url: videoUrl,
+    params: params,
+    chunkSize: 50 * 1024 * 1024    // 50 MB
+)
+```
+
+<Warning>
+  Chunk sizes below 5 MB (5 × 1024 × 1024 bytes) are rejected. The returned `CLDUploadRequest` will immediately carry an error and the `completionHandler` will be called with that error.
+</Warning>
+
+---
+
+## Controlling the request
+
+`uploadLarge` returns a `CLDUploadRequest`. You can cancel the entire multi-chunk operation, or suspend and resume it:
+
+```swift
+let request = uploader.signedUploadLarge(
+    url: videoUrl,
+    params: params,
+    completionHandler: { result, error in
+        print(result?.publicId ?? "")
+    }
+)
+
+// Cancel all remaining chunks
+request.cancel()
+
+// Pause (e.g. when entering background)
+request.suspend()
+request.resume()
+```
+
+---
+
+## Reading the result
+
+The `CLDUploadResult` returned in the completion handler is identical to the one from a standard upload. For video assets, you can inspect additional fields:
+
+```swift
+completionHandler: { result, error in
+    guard let result = result else { return }
+
+    print("Public ID : \(result.publicId ?? "")")
+    print("Secure URL: \(result.secureUrl ?? "")")
+    print("Duration  : \(result.duration ?? 0)s")
+    print("Bit rate  : \(result.bitRate ?? 0) bps")
+
+    if let video = result.video {
+        print("Codec : \(video.codec ?? "")")
+        print("Format: \(video.format ?? "")")
+    }
+    if let audio = result.audio {
+        print("Audio codec: \(audio.codec ?? "")")
+        print("Channels   : \(audio.channels ?? 0)")
+    }
+}
+```

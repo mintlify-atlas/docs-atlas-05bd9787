@@ -1,0 +1,185 @@
+---
+title: "Download & fetch images"
+description: "Use CLDDownloader to asynchronously fetch images and raw assets, track progress, and manage the built-in URL cache."
+keywords: ["CLDDownloader", "fetchImage", "fetchAsset", "download", "cache", "progress", "CLDFetchImageRequest"]
+---
+
+`CLDDownloader` is the SDK class responsible for downloading assets from Cloudinary (or any URL) asynchronously. It retrieves the item from the cache if it was fetched previously; otherwise it downloads and caches it. You never instantiate `CLDDownloader` directly — you obtain it from your `CLDCloudinary` instance.
+
+## Getting a downloader
+
+```swift
+let cloudinary = CLDCloudinary(configuration: config)
+let downloader = cloudinary.createDownloader()
+```
+
+## Fetching an image
+
+Use `fetchImage(_:progress:completionHandler:)` to download a remote image and receive a `UIImage` in the completion handler.
+
+```swift
+let request = downloader.fetchImage(imageUrl) { responseImage, error in
+    if let image = responseImage {
+        imageView.image = image
+    } else if let error = error {
+        print("Download failed: \(error.localizedDescription)")
+    }
+}
+```
+
+The method returns a `CLDFetchImageRequest`, which you can use to monitor progress or control the transfer.
+
+### Parameters
+
+<ParamField path="url" type="String" required>
+  The fully-qualified URL of the image to download. Build this with `CLDUrl` or pass any HTTPS URL.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  A closure called periodically during the download. The closure receives a `Progress` object you can use to read `completedUnitCount` and `totalUnitCount`.
+</ParamField>
+
+<ParamField path="completionHandler" type="CLDCompletionHandler?">
+  A closure called when the request finishes. Its signature is `(_ responseImage: UIImage?, _ error: NSError?) -> ()`. Exactly one of the two parameters will be non-nil.
+</ParamField>
+
+### Tracking download progress
+
+```swift
+let request = downloader.fetchImage(imageUrl, { progress in
+    let percent = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
+    print("Download progress: \(Int(percent * 100))%")
+}) { responseImage, error in
+    // Handle completion
+}
+```
+
+## Fetching raw asset data
+
+Use `fetchAsset(_:progress:completionHandler:)` when you need the raw `Data` bytes of a file rather than a decoded `UIImage` — useful for non-image resources like PDFs, fonts, or custom binary files.
+
+```swift
+let request = downloader.fetchAsset(assetUrl, { progress in
+    // Handle progress
+}) { responseData, error in
+    if let data = responseData {
+        // Use raw data
+    }
+}
+```
+
+The completion handler type is `CLDAssetCompletionHandler`, defined as `(_ responseAsset: Data?, _ error: NSError?) -> ()`.
+
+## Controlling a request
+
+Both `fetchImage` and `fetchAsset` return a request object that conforms to the same control interface.
+
+<Tabs>
+  <Tab title="fetchImage return value">
+    `fetchImage` returns a `CLDFetchImageRequest`.
+  </Tab>
+  <Tab title="fetchAsset return value">
+    `fetchAsset` returns a `CLDFetchAssetRequest`.
+  </Tab>
+</Tabs>
+
+Both request types expose these control methods:
+
+| Method | Description |
+|---|---|
+| `cancel()` | Cancels the in-flight download. The completion handler is not called. |
+| `suspend()` | Pauses the download. The connection is kept open. |
+| `resume()` | Resumes a suspended download. |
+
+```swift
+// Start a download
+let request = downloader.fetchImage(imageUrl) { image, error in
+    // ...
+}
+
+// Later — pause, resume, or cancel
+request.suspend()
+request.resume()
+request.cancel()
+```
+
+<Note>
+  If the image is already in the cache, the completion handler is called synchronously from the cache before any network request is made. Calling `cancel()` on a cache hit has no effect.
+</Note>
+
+## Built-in caching
+
+`CLDDownloader` caches every successful response using `URLCache`. The same cache entry serves both memory and disk lookups, so a cached image loads instantly without a network round-trip.
+
+**Default limits:**
+
+| Cache layer | Default size |
+|---|---|
+| Memory | 30 MB |
+| Disk | 150 MB |
+
+### Configuring cache limits
+
+Set cache sizes on your `CLDCloudinary` instance before making any download calls. Changes take effect on the next request.
+
+```swift
+// Increase disk cache to 300 MB
+cloudinary.cacheMaxDiskCapacity = 300 * 1024 * 1024
+
+// Increase memory cache to 60 MB
+cloudinary.cacheMaxMemoryTotalCost = 60 * 1024 * 1024
+```
+
+### Disabling the cache
+
+```swift
+cloudinary.enableUrlCache = false
+```
+
+<Warning>
+  Disabling the cache means every call to `fetchImage` or `fetchAsset` sends a network request, even if the same URL was fetched moments ago. Only disable the cache if you have a specific reason, such as a testing environment.
+</Warning>
+
+## Complete example
+
+The following example builds a Cloudinary URL, downloads the image with a progress indicator, and displays it in a view controller.
+
+```swift
+import UIKit
+import Cloudinary
+
+class PhotoViewController: UIViewController {
+
+    @IBOutlet weak var imageView: UIImageView!
+    @IBOutlet weak var progressView: UIProgressView!
+
+    let cloudinary = CLDCloudinary(
+        configuration: CLDConfiguration(cloudName: "my-cloud", apiKey: "my-key")
+    )
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        loadPhoto()
+    }
+
+    func loadPhoto() {
+        guard let url = cloudinary.createUrl()
+            .setTransformation(CLDTransformation().setWidth(600).setHeight(400).setCrop(.fill))
+            .generate("sample") else { return }
+
+        cloudinary.createDownloader().fetchImage(url, { [weak self] progress in
+            DispatchQueue.main.async {
+                let fraction = Float(progress.completedUnitCount) / Float(progress.totalUnitCount)
+                self?.progressView.progress = fraction
+            }
+        }) { [weak self] responseImage, error in
+            DispatchQueue.main.async {
+                if let image = responseImage {
+                    self?.imageView.image = image
+                    self?.progressView.isHidden = true
+                }
+            }
+        }
+    }
+}
+```

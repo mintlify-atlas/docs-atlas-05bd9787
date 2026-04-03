@@ -1,0 +1,280 @@
+---
+title: 'Upload widget'
+description: 'Present a built-in image and video picker with crop and rotation UI using CLDUploaderWidget, then receive upload results through a delegate.'
+keywords: ['upload widget', 'CLDUploaderWidget', 'CLDWidgetConfiguration', 'CLDUploaderWidgetDelegate', 'image picker', 'video upload']
+---
+
+## Overview
+
+`CLDUploaderWidget` is a drop-in UI component that handles the full asset-selection-to-upload flow:
+
+1. Opens the device photo library (or uses assets you supply directly).
+2. Presents a review screen where the user can crop and optionally rotate images.
+3. Uploads the final assets to Cloudinary and reports the resulting `CLDUploadRequest` objects to your delegate.
+
+You stay in control of the upload outcome through the `CLDUploaderWidgetDelegate` protocol, but you do not need to build any picker or editing UI yourself.
+
+---
+
+## Supported media types
+
+- **Images** — presented as `UIImage`. The user can crop and optionally rotate before upload.
+- **Videos** — presented as `AVPlayerItem`. Played back in the review screen; no trimming UI is included.
+
+---
+
+## Setting up the delegate
+
+Implement `CLDUploaderWidgetDelegate` to receive callbacks from the widget:
+
+```swift
+extension MyViewController: CLDUploaderWidgetDelegate {
+
+    // Called just before upload requests are dispatched.
+    // Use this to attach additional .response() closures or show a progress indicator.
+    func uploadWidget(
+        _ widget: CLDUploaderWidget,
+        willCall uploadRequests: [CLDUploadRequest]
+    ) {
+        for request in uploadRequests {
+            request.response { result, error in
+                if let error = error {
+                    print("Upload error: \(error.localizedDescription)")
+                    return
+                }
+                print("Uploaded: \(result?.secureUrl ?? "")")
+            }
+        }
+    }
+
+    // Called when the user taps Cancel.
+    func widgetDidCancel(_ widget: CLDUploaderWidget) {
+        print("Widget cancelled")
+    }
+
+    // Called after the widget's view controller is dismissed.
+    func uploadWidgetDidDismiss() {
+        print("Widget dismissed")
+    }
+}
+```
+
+---
+
+## Initializing the widget
+
+<Tabs>
+  <Tab title="Photo library picker">
+    When you initialize the widget with no images or videos, it opens the device photo library so the user can pick an asset:
+
+    ```swift
+    let widget = CLDUploaderWidget(
+        cloudinary: cloudinary,
+        configuration: nil,    // use defaults
+        images: nil,
+        delegate: self
+    )
+    ```
+
+    Calling `presentWidget(from:)` opens a `UIImagePickerController` first. After the user picks an asset, the review screen appears.
+  </Tab>
+  <Tab title="Pre-supplied images">
+    Supply images directly to skip the library picker and go straight to the review screen:
+
+    ```swift
+    let images: [UIImage] = [photo1, photo2]
+
+    let widget = CLDUploaderWidget(
+        cloudinary: cloudinary,
+        configuration: nil,
+        images: images,
+        delegate: self
+    )
+    ```
+  </Tab>
+  <Tab title="Pre-supplied videos">
+    Supply videos as `AVPlayerItem` or `URL` arrays:
+
+    ```swift
+    let videoItems = videoUrls.map { AVPlayerItem(url: $0) }
+
+    let widget = CLDUploaderWidget(
+        cloudinary: cloudinary,
+        configuration: nil,
+        images: nil,
+        videos: videoItems,
+        delegate: self
+    )
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Presenting the widget
+
+Call `presentWidget(from:)` with the view controller that should present the widget modally:
+
+```swift
+widget.presentWidget(from: self)
+```
+
+The widget is presented full-screen. If no images or videos were supplied, the photo library picker appears first.
+
+To dismiss the widget programmatically (for example, after an error):
+
+```swift
+widget.dismissWidget()
+```
+
+---
+
+## Configuring the widget
+
+`CLDWidgetConfiguration` controls the editing UI and the upload type.
+
+```swift
+let configuration = CLDWidgetConfiguration(
+    allowRotate: true,
+    initialAspectLockState: .enabledAndOn,
+    uploadType: CLDUploadType(signed: true, preset: nil)
+)
+
+let widget = CLDUploaderWidget(
+    cloudinary: cloudinary,
+    configuration: configuration,
+    images: nil,
+    delegate: self
+)
+```
+
+### Configuration parameters
+
+<ParamField path="allowRotate" type="Bool" default="true">
+  Whether the review screen shows a rotation control. Set to `false` to hide it.
+</ParamField>
+
+<ParamField path="initialAspectLockState" type="AspectRatioLockState" default=".enabledAndOff">
+  Controls the initial state of the aspect ratio lock in the crop UI.
+
+  - `.enabledAndOff` — lock button is shown; aspect ratio is initially unlocked.
+  - `.enabledAndOn` — lock button is shown; aspect ratio is initially locked.
+  - `.disabled` — lock button is hidden; the user can freely resize without locking.
+</ParamField>
+
+<ParamField path="uploadType" type="CLDUploadType">
+  Determines whether uploads are signed or unsigned.
+
+  - `CLDUploadType(signed: true, preset: nil)` — signed upload (default).
+  - `CLDUploadType(signed: false, preset: "your_preset_name")` — unsigned upload using the named preset.
+</ParamField>
+
+### Using an unsigned upload preset
+
+```swift
+let config = CLDWidgetConfiguration(
+    allowRotate: false,
+    initialAspectLockState: .enabledAndOn,
+    uploadType: CLDUploadType(signed: false, preset: "mobile_uploads")
+)
+```
+
+<Warning>
+  When `signed` is `false`, you must supply a non-empty `preset` string. Omitting it prints a warning at runtime and the upload will fail.
+</Warning>
+
+---
+
+## Updating widget properties after initialization
+
+All properties can be updated after initialization, but **only while the widget is not presented**:
+
+```swift
+widget
+    .setCloudinary(newCloudinaryInstance)
+    .setConfiguration(updatedConfig)
+    .setImages([newImage])
+    .setDelegate(newDelegate)
+```
+
+Attempting to change these while the widget is visible has no effect (a message is printed to the console).
+
+---
+
+## Full example
+
+```swift
+class UploadViewController: UIViewController, CLDUploaderWidgetDelegate {
+
+    var widget: CLDUploaderWidget!
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        let config = CLDConfiguration(cloudinaryUrl: "cloudinary://API_KEY:API_SECRET@CLOUD_NAME")
+        let cloudinary = CLDCloudinary(configuration: config)
+
+        let widgetConfig = CLDWidgetConfiguration(
+            allowRotate: true,
+            initialAspectLockState: .enabledAndOff,
+            uploadType: CLDUploadType(signed: true, preset: nil)
+        )
+
+        widget = CLDUploaderWidget(
+            cloudinary: cloudinary,
+            configuration: widgetConfig,
+            images: nil,
+            delegate: self
+        )
+    }
+
+    @IBAction func openWidgetTapped(_ sender: UIButton) {
+        widget.presentWidget(from: self)
+    }
+
+    // MARK: - CLDUploaderWidgetDelegate
+
+    func uploadWidget(
+        _ widget: CLDUploaderWidget,
+        willCall uploadRequests: [CLDUploadRequest]
+    ) {
+        uploadRequests.forEach { request in
+            request.progress { progress in
+                print("Progress: \(Int(progress.fractionCompleted * 100))%")
+            }
+            request.response { result, error in
+                if let error = error {
+                    print("Failed: \(error.localizedDescription)")
+                    return
+                }
+                print("Public ID : \(result?.publicId ?? "")")
+                print("Secure URL: \(result?.secureUrl ?? "")")
+            }
+        }
+    }
+
+    func widgetDidCancel(_ widget: CLDUploaderWidget) {
+        print("User cancelled")
+    }
+
+    func uploadWidgetDidDismiss() {
+        print("Widget dismissed")
+    }
+}
+```
+
+---
+
+## Delegate method reference
+
+<ResponseField name="uploadWidget(_:willCall:)" type="method" required>
+  Called with the array of `CLDUploadRequest` objects that are about to be dispatched. Attach `.response(_:)` and `.progress(_:)` closures here to track each upload individually.
+</ResponseField>
+
+<ResponseField name="widgetDidCancel(_:)" type="method" required>
+  Called when the user taps the cancel button in the picker or review screen. The widget dismisses itself; use this callback to update your UI state.
+</ResponseField>
+
+<ResponseField name="uploadWidgetDidDismiss()" type="method" required>
+  Called after the widget's view controller has finished dismissing. Use this callback to perform any cleanup, such as hiding a loading indicator.
+</ResponseField>

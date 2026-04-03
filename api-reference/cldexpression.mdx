@@ -1,0 +1,423 @@
+---
+title: 'CLDExpression and CLDConditionExpression'
+description: 'Build dynamic transformation parameter values and conditional logic using CLDExpression, CLDConditionExpression, and CLDVariable.'
+keywords: ['cloudinary', 'ios', 'expression', 'CLDExpression', 'CLDConditionExpression', 'CLDVariable', 'condition']
+---
+
+Cloudinary expressions let you use dynamic values — such as the asset's width, face count, or a user-defined variable — as transformation parameters. They are composed using the `CLDExpression` class, which supports arithmetic operations and serialises to Cloudinary's expression syntax.
+
+`CLDConditionExpression` extends `CLDExpression` with comparison and logical operators, enabling conditional transformations with `ifCondition` / `ifElse` / `endIf`.
+
+`CLDVariable` lets you define named variables and reference them inside expressions.
+
+---
+
+## CLDExpression
+
+```swift
+@objcMembers open class CLDExpression: NSObject
+```
+
+### Initializers
+
+```swift
+public override init()
+public init(value: String)
+```
+
+<ParamField path="value" type="String">
+  A raw expression string. Predefined variable names (e.g. `width`, `aspectRatio`) and operator symbols are translated to their Cloudinary URL equivalents when serialised.
+</ParamField>
+
+---
+
+### Predefined variable factory methods
+
+Each method returns a `CLDExpression` seeded with the corresponding predefined variable. You can then chain arithmetic operators.
+
+| Method | URL abbreviation | Description |
+|---|---|---|
+| `CLDExpression.width()` | `w` | Current asset width in pixels. |
+| `CLDExpression.height()` | `h` | Current asset height in pixels. |
+| `CLDExpression.initialWidth()` | `iw` | Original uploaded asset width. |
+| `CLDExpression.initialHeight()` | `ih` | Original uploaded asset height. |
+| `CLDExpression.aspectRatio()` | `ar` | Current asset aspect ratio (width / height). |
+| `CLDExpression.initialAspectRatio()` | `iar` | Original uploaded asset aspect ratio. |
+| `CLDExpression.pageCount()` | `pc` | Number of pages (PDF, animated GIF). |
+| `CLDExpression.faceCount()` | `fc` | Number of faces detected. |
+| `CLDExpression.illustrationScore()` | `ils` | Illustration score from AI content analysis (0–1). |
+| `CLDExpression.currentPageIndex()` | `cp` | Index of the current page (multi-page assets). |
+| `CLDExpression.pageXOffset()` | `px` | Page X offset. |
+| `CLDExpression.pageYOffset()` | `py` | Page Y offset. |
+| `CLDExpression.tags()` | `tags` | Asset tags. |
+| `CLDExpression.duration()` | `du` | Video duration in seconds. |
+| `CLDExpression.initialDuration()` | `idu` | Original video duration in seconds. |
+
+---
+
+### Arithmetic operators
+
+All arithmetic operators return `Self`, so they can be chained.
+
+#### add(by:)
+
+```swift
+public func add(by number: Int) -> Self
+public func add(by number: Float) -> Self
+public func add(by number: String) -> Self
+```
+
+#### subtract(by:)
+
+```swift
+public func subtract(by number: Int) -> Self
+public func subtract(by number: Float) -> Self
+public func subtract(by number: String) -> Self
+```
+
+#### multiple(by:)
+
+```swift
+public func multiple(by number: Int) -> Self
+public func multiple(by number: Float) -> Self
+public func multiple(by number: String) -> Self
+```
+
+#### divide(by:)
+
+```swift
+public func divide(by number: Int) -> Self
+public func divide(by number: Float) -> Self
+public func divide(by number: String) -> Self
+```
+
+#### power(by:)
+
+```swift
+public func power(by number: Int) -> Self
+public func power(by number: Float) -> Self
+public func power(by number: String) -> Self
+```
+
+---
+
+### Serialisation
+
+```swift
+public func asString() -> String
+public func asParams() -> [String: String]
+```
+
+`asString()` returns the expression as a URL-safe parameter value. `asParams()` returns a dictionary of `[key: value]` suitable for embedding in a transformation.
+
+---
+
+### Examples
+
+```swift
+// Set width to half the original width
+let expr = CLDExpression.initialWidth().divide(by: 2)
+CLDTransformation().setWidth(expr)
+// URL: w_iw_div_2
+
+// Set height to maintain aspect ratio relative to a fixed width
+let height = CLDExpression.initialHeight()
+    .multiple(by: CLDExpression.width())
+    .divide(by: CLDExpression.initialWidth())
+CLDTransformation()
+    .setWidth(400)
+    .setHeight(height)
+// URL: w_400,h_ih_mul_w_div_iw
+```
+
+---
+
+## CLDConditionExpression
+
+```swift
+@objcMembers open class CLDConditionExpression: CLDExpression
+```
+
+`CLDConditionExpression` extends `CLDExpression` with comparison and logical operators. It is used with `CLDTransformation.ifCondition()` to apply transformations conditionally.
+
+### Initializers
+
+```swift
+public override init()
+public override init(value: String)
+```
+
+`CLDConditionExpression` shares the same predefined variable factory methods as `CLDExpression`, overriding them to return `CLDConditionExpression`.
+
+---
+
+### Comparison operators
+
+All comparison methods accept `Int`, `Float`, `String`, or `CLDExpression` operands and return `Self`.
+
+#### equal(to:)
+
+```swift
+public func equal(to value: Int) -> Self
+public func equal(to value: Float) -> Self
+public func equal(to value: String) -> Self
+public func equal(to value: CLDExpression) -> Self
+```
+
+#### notEqual(to:)
+
+```swift
+public func notEqual(to value: Int) -> Self
+public func notEqual(to value: Float) -> Self
+public func notEqual(to value: String) -> Self
+public func notEqual(to value: CLDExpression) -> Self
+```
+
+#### less(then:)
+
+```swift
+public func less(then value: Int) -> Self
+public func less(then value: Float) -> Self
+public func less(then value: String) -> Self
+public func less(then value: CLDExpression) -> Self
+```
+
+#### greater(then:)
+
+```swift
+public func greater(then value: Int) -> Self
+public func greater(then value: Float) -> Self
+public func greater(then value: String) -> Self
+public func greater(then value: CLDExpression) -> Self
+```
+
+#### lessOrEqual(to:)
+
+```swift
+public func lessOrEqual(to value: Int) -> Self
+public func lessOrEqual(to value: Float) -> Self
+public func lessOrEqual(to value: String) -> Self
+public func lessOrEqual(to value: CLDExpression) -> Self
+```
+
+#### greaterOrEqual(to:)
+
+```swift
+public func greaterOrEqual(to value: Int) -> Self
+public func greaterOrEqual(to value: Float) -> Self
+public func greaterOrEqual(to value: String) -> Self
+public func greaterOrEqual(to value: CLDExpression) -> Self
+```
+
+#### inside(_:)
+
+Test whether a value falls inside a given range or set.
+
+```swift
+public func inside(_ expression: String) -> Self
+public func inside(_ expression: CLDExpression) -> Self
+```
+
+#### notInside(_:)
+
+```swift
+public func notInside(_ expression: String) -> Self
+public func notInside(_ expression: CLDExpression) -> Self
+```
+
+---
+
+### Logical operators
+
+#### and()
+
+Append an `&&` conjunction to the expression.
+
+```swift
+public func and() -> Self
+public func and(_ value: String) -> Self
+public func and(_ value: CLDExpression) -> Self
+```
+
+#### or()
+
+Append an `||` disjunction to the expression.
+
+```swift
+public func or() -> Self
+public func or(_ value: String) -> Self
+public func or(_ value: CLDExpression) -> Self
+```
+
+---
+
+### Predicate shorthand methods
+
+For each predefined variable, `CLDConditionExpression` provides helper methods that build a complete predicate in one call:
+
+```swift
+public func width(_ operatorString: String, _ object: Int) -> Self
+public func height(_ operatorString: String, _ object: Int) -> Self
+public func aspectRatio(_ operatorString: String, _ object: Float) -> Self
+public func faceCount(_ operatorString: String, _ object: Int) -> Self
+public func pageCount(_ operatorString: String, _ object: Int) -> Self
+public func illustrationScore(_ operatorString: String, _ object: Float) -> Self
+public func currentPageIndex(_ operatorString: String, _ object: Int) -> Self
+public func duration(_ operatorString: String, _ object: Float) -> Self
+public func initialDuration(_ operatorString: String, _ object: Float) -> Self
+// … and equivalents for initialWidth, initialHeight, initialAspectRatio,
+//   pageXOffset, pageYOffset, tags
+```
+
+<ParamField path="operatorString" type="String">
+  A Cloudinary operator string: `">"`, `">="`, `"<"`, `"<="`, `"="`, `"!="`, `"in"`, `"nin"`.
+</ParamField>
+
+---
+
+### value(_:)
+
+Append a raw value or expression to the condition.
+
+```swift
+public func value(_ expression: String) -> Self
+public func value(_ expression: CLDExpression) -> Self
+```
+
+---
+
+### then()
+
+Finalise the condition and attach it to the related `CLDTransformation` as an `if` parameter.
+
+```swift
+public func then() -> CLDTransformation
+```
+
+---
+
+### Examples
+
+```swift
+// Fluent condition using the instance method ifCondition()
+CLDTransformation()
+    .ifCondition()
+        .width(">", 1000)
+    .then()
+        .setWidth(800)
+        .setCrop(.scale)
+    .endIf()
+// URL: if_w_gt_1000/w_800,c_scale/if_end
+
+// Condition with and
+CLDTransformation()
+    .ifCondition(
+        CLDConditionExpression.faceCount()
+            .greater(then: 0)
+            .and()
+            .width(">", 300)
+    )
+    .setGravity(.faces)
+    .setCrop(.thumb)
+    .setWidth(200)
+    .endIf()
+// URL: if_fc_gt_0_and_w_gt_300/g_faces,c_thumb,w_200/if_end
+
+// Condition + else branch
+CLDTransformation()
+    .ifCondition()
+        .aspectRatio(">", 1.0)
+    .then()
+        .setWidth(800)
+        .setCrop(.scale)
+    .chain()
+    .ifElse()
+        .setHeight(600)
+        .setCrop(.scale)
+    .endIf()
+```
+
+---
+
+## CLDVariable
+
+```swift
+@objcMembers open class CLDVariable: NSObject
+```
+
+`CLDVariable` defines a user-defined variable that you can reference inside transformation expressions.
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `name` | `String` | Variable name including the `$` prefix (added automatically if omitted). |
+| `value` | `String` | The serialised variable value. |
+
+### Initializers
+
+```swift
+public init(name: String, value: String)
+public init(name: String, value: Double)
+public init(name: String, value: Int)
+public init(name: String, values: [String])
+```
+
+<ParamField path="name" type="String">
+  Variable name. Must match `$[a-zA-Z][a-zA-Z0-9]*`. The `$` prefix is prepended automatically if missing.
+</ParamField>
+
+<ParamField path="value" type="String | Double | Int">
+  The variable value. Numeric types are converted to their string representations.
+</ParamField>
+
+<ParamField path="values" type="[String]">
+  An array of strings, serialised as a Cloudinary list literal using `!value1:value2!` syntax.
+</ParamField>
+
+<Note>
+  A variable is only valid when its name matches the pattern `$[a-zA-Z][a-zA-Z0-9]*` and its value is non-empty. Invalid variables are silently ignored when passed to `setVariable(_:)`.
+</Note>
+
+### Methods
+
+```swift
+public func asString() -> String
+public func asParams() -> [String: String]
+```
+
+`asString()` returns `"$name_value"`. `asParams()` returns `["$name": "value"]`.
+
+---
+
+### Setting variables on a transformation
+
+```swift
+// Using CLDVariable
+let widthVar = CLDVariable(name: "myWidth", value: 400)
+CLDTransformation()
+    .setVariable(widthVar)
+    .setWidth("$myWidth")
+    .setCrop(.scale)
+
+// Using convenience overloads directly on CLDTransformation
+CLDTransformation()
+    .setVariable("myWidth", int: 400)
+    .setWidth("$myWidth")
+
+// Setting multiple variables at once
+let vars = [
+    CLDVariable(name: "w", value: 400),
+    CLDVariable(name: "h", value: 300),
+]
+CLDTransformation()
+    .setVariables(vars)
+    .setWidth("$w")
+    .setHeight("$h")
+    .setCrop(.fill)
+
+// Using a list variable
+let listVar = CLDVariable(name: "colors", values: ["red", "blue", "green"])
+CLDTransformation().setVariable(listVar)
+// Produces: $colors_!red:blue:green!
+```

@@ -1,0 +1,268 @@
+---
+title: 'Configuration'
+description: 'Set up CLDConfiguration and CLDCloudinary to connect your iOS app to your Cloudinary account.'
+keywords: ['CLDConfiguration', 'CLDCloudinary', 'cloud name', 'API key', 'iOS setup']
+---
+
+`CLDConfiguration` holds all connection parameters used by the `CLDCloudinary` instance. You must set at least `cloudName` before making any SDK calls. `apiKey` and `apiSecret` are required for signed uploads and URL signing.
+
+## Initialize CLDConfiguration
+
+The SDK provides three ways to create a `CLDConfiguration` object.
+
+<Tabs>
+  <Tab title="Direct init">
+    Pass parameters directly to the initializer. This is the most explicit approach.
+
+    ```swift
+    let config = CLDConfiguration(
+        cloudName: "my-cloud",
+        apiKey: "123456789012345",
+        apiSecret: "abcdefghijklmnopqrstuvwxyz0",
+        secure: true
+    )
+    ```
+
+    All parameters except `cloudName` are optional and fall back to their defaults when omitted.
+  </Tab>
+
+  <Tab title="Cloudinary URL">
+    Pass a URL of the form `cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>`. This is convenient when you store credentials as a single string.
+
+    ```swift
+    let config = CLDConfiguration(
+        cloudinaryUrl: "cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyz0@my-cloud"
+    )
+    ```
+
+    <Note>
+      This initializer is failable — it returns `nil` if the URL does not start with `cloudinary://` or cannot be parsed.
+    </Note>
+
+    You can append optional query parameters to the URL:
+
+    ```swift
+    // cloudinary://<key>:<secret>@<cloud>?secure=true&cdn_subdomain=true&signature_algorithm=sha256
+    let config = CLDConfiguration(
+        cloudinaryUrl: "cloudinary://key:secret@my-cloud?secure=true&signature_algorithm=sha256"
+    )
+    ```
+
+    Supported query parameters: `secure`, `cdn_subdomain`, `secure_cdn_subdomain`, `long_url_signature`, `cname`, `upload_prefix`, `signature_algorithm`, `signature_version`, `timeout`, `analytics`.
+  </Tab>
+
+  <Tab title="Environment variable">
+    Set the `CLOUDINARY_URL` environment variable to a valid Cloudinary URL, then call the static initializer. This is the recommended approach for CI and automated environments.
+
+    ```swift
+    // Reads process environment: CLOUDINARY_URL=cloudinary://key:secret@my-cloud
+    guard let config = CLDConfiguration.initWithEnvParams() else {
+        fatalError("CLOUDINARY_URL environment variable is missing or invalid")
+    }
+    ```
+
+    <Tip>
+      In Xcode, add `CLOUDINARY_URL` under **Product › Scheme › Edit Scheme › Run › Arguments › Environment Variables** to test locally without hardcoding credentials.
+    </Tip>
+  </Tab>
+</Tabs>
+
+## Initialize CLDCloudinary
+
+Once you have a `CLDConfiguration`, create the main `CLDCloudinary` instance:
+
+```swift
+let cloudinary = CLDCloudinary(configuration: config)
+```
+
+You can optionally provide a custom network adapter or session configuration:
+
+```swift
+let sessionConfig = URLSessionConfiguration.default
+sessionConfig.timeoutIntervalForRequest = 30
+
+let cloudinary = CLDCloudinary(
+    configuration: config,
+    sessionConfiguration: sessionConfig
+)
+```
+
+Store the `CLDCloudinary` instance as a singleton or inject it via dependency injection — it is safe to reuse across your app.
+
+## Configuration parameters
+
+<AccordionGroup>
+  <Accordion title="Core identity">
+    <ParamField path="cloudName" type="string" required>
+      Your Cloudinary cloud name. Found in the Cloudinary dashboard under account details.
+    </ParamField>
+
+    <ParamField path="apiKey" type="string">
+      Your account API key. Required for signed uploads and signed URL generation.
+    </ParamField>
+
+    <ParamField path="apiSecret" type="string">
+      Your account API secret. Required for signed uploads and URL signing. Never embed this in client-facing builds.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="CDN and delivery">
+    <ParamField path="secure" type="boolean" default="false">
+      Use HTTPS for all generated URLs. Set to `true` for production apps.
+    </ParamField>
+
+    <ParamField path="privateCdn" type="boolean" default="false">
+      Deliver assets through a private CDN. Requires an advanced Cloudinary plan.
+    </ParamField>
+
+    <ParamField path="cdnSubdomain" type="boolean" default="false">
+      Distribute requests across multiple CDN subdomains (e.g. `res-1.cloudinary.com`, `res-2.cloudinary.com`). Can improve performance by parallelizing browser HTTP connections.
+    </ParamField>
+
+    <ParamField path="secureCdnSubdomain" type="boolean" default="false">
+      Use CDN subdomains over HTTPS. Only relevant when both `secure` and `cdnSubdomain` are `true`.
+    </ParamField>
+
+    <ParamField path="secureDistribution" type="string" default="nil">
+      Custom secure distribution domain. Used when delivering assets through your own HTTPS CDN (advanced plan only).
+    </ParamField>
+
+    <ParamField path="cname" type="string" default="nil">
+      Custom domain name for non-secure asset delivery. Requires a CNAME DNS record pointing to `res.cloudinary.com`.
+    </ParamField>
+
+    <ParamField path="uploadPrefix" type="string" default="nil">
+      Override Cloudinary's default API prefix with a custom upload endpoint URL.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Signatures">
+    <ParamField path="longUrlSignature" type="boolean" default="false">
+      Use a 32-character URL signature instead of the default 8-character one. Implies `sha256`.
+    </ParamField>
+
+    <ParamField path="signatureAlgorithm" type="SignatureAlgorithm" default=".sha1">
+      Hash algorithm used to compute URL signatures. Accepted values:
+
+      | Case | Raw value |
+      |------|-----------|
+      | `.sha1` | `"sha1"` |
+      | `.sha256` | `"sha256"` |
+
+      ```swift
+      let config = CLDConfiguration(
+          cloudName: "my-cloud",
+          apiKey: "key",
+          apiSecret: "secret",
+          signatureAlgorithm: .sha256
+      )
+      ```
+    </ParamField>
+
+    <ParamField path="signatureVersion" type="Int" default="2">
+      Signature version to use when signing requests.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Networking">
+    <ParamField path="timeout" type="NSNumber" default="nil">
+      Network timeout in milliseconds. When `nil`, the SDK uses the platform default.
+
+      ```swift
+      let config = CLDConfiguration(
+          cloudName: "my-cloud",
+          timeout: 10000   // 10 seconds
+      )
+      ```
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Analytics">
+    <ParamField path="analytics" type="boolean" default="true">
+      Send anonymous SDK usage analytics to Cloudinary. Disable if your privacy policy requires it.
+
+      ```swift
+      let config = CLDConfiguration(cloudName: "my-cloud", analytics: false)
+      ```
+
+      You can also disable it via the URL query parameter:
+
+      ```swift
+      let config = CLDConfiguration(
+          cloudinaryUrl: "cloudinary://key:secret@my-cloud?analytics=false"
+      )
+      ```
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+## Image cache settings
+
+The `CLDCloudinary` instance exposes three properties that control the built-in URL image cache used by the downloader.
+
+<ParamField path="enableUrlCache" type="boolean">
+  Enable or disable the disk and memory cache for downloaded images. Enabled by default.
+
+  ```swift
+  cloudinary.enableUrlCache = false
+  ```
+</ParamField>
+
+<ParamField path="cacheMaxDiskCapacity" type="Int">
+  Maximum disk cache size in bytes. Default is **150 MB**.
+
+  ```swift
+  cloudinary.cacheMaxDiskCapacity = 200 * 1024 * 1024  // 200 MB
+  ```
+</ParamField>
+
+<ParamField path="cacheMaxMemoryTotalCost" type="Int">
+  Maximum in-memory cache size in bytes. Default is **30 MB**.
+
+  ```swift
+  cloudinary.cacheMaxMemoryTotalCost = 50 * 1024 * 1024  // 50 MB
+  ```
+</ParamField>
+
+## Log level
+
+Control how much the SDK logs to the console. The default level is `.none`.
+
+```swift
+import Cloudinary
+
+CLDCloudinary.logLevel = .debug
+```
+
+Available levels (defined in `CLDLogLevel`): `.none`, `.error`, `.warning`, `.info`, `.debug`, `.verbose`.
+
+<Warning>
+  Set the log level back to `.none` before shipping to production. Verbose logging can expose request details in device logs.
+</Warning>
+
+## Complete setup example
+
+```swift
+import Cloudinary
+
+// AppDelegate.swift or your DI container
+func configureCloudinary() -> CLDCloudinary {
+    let config = CLDConfiguration(
+        cloudName: "my-cloud",
+        apiKey: "123456789012345",
+        apiSecret: "abcdefghijklmnopqrstuvwxyz0",
+        secure: true,
+        signatureAlgorithm: .sha256
+    )
+
+    let cloudinary = CLDCloudinary(configuration: config)
+    cloudinary.cacheMaxDiskCapacity = 150 * 1024 * 1024
+    cloudinary.cacheMaxMemoryTotalCost = 30 * 1024 * 1024
+
+    #if DEBUG
+    CLDCloudinary.logLevel = .debug
+    #endif
+
+    return cloudinary
+}
+```

@@ -1,0 +1,983 @@
+---
+title: 'CLDUploadRequestParams'
+description: 'Configure every aspect of a Cloudinary upload request—public ID, transformations, metadata, analysis, and more.'
+---
+
+`CLDUploadRequestParams` holds the parameters sent alongside an upload request. Pass an instance to any `CLDUploader` upload method via the `params` argument. All setter methods return `Self`, so you can chain them.
+
+```swift
+let params = CLDUploadRequestParams()
+    .setPublicId("profile-photo")
+    .setFolder("users/avatars")
+    .setTags(["profile", "avatar"])
+    .setTransformation(CLDTransformation().setWidth(800).setCrop("limit"))
+```
+
+<Note>
+  `CLDUploadRequestParams` inherits `setResourceType(_:)`, `setSignature(_:)`, and `setApiKey(_:)` from its base class `CLDRequestParams`. These are documented separately below.
+</Note>
+
+---
+
+## Identification
+
+### setPublicId(_:)
+
+```swift
+@discardableResult
+open func setPublicId(_ publicId: String) -> Self
+```
+
+Sets the identifier used to access the uploaded resource. A randomly generated ID is assigned if you do not call this method. The public ID may include a folder path using `/` as a separator.
+
+<ParamField path="publicId" type="String" required>
+  The public ID to assign. May contain forward slashes to place the resource in a folder (e.g., `"users/123/avatar"`).
+</ParamField>
+
+```swift
+params.setPublicId("products/shoe-red-42")
+```
+
+---
+
+### setPublicIdPrefix(_:)
+
+```swift
+@discardableResult
+open func setPublicIdPrefix(_ prefix: String) -> Self
+```
+
+Sets a prefix to prepend to the resource's public ID.
+
+<ParamField path="prefix" type="String" required>
+  The prefix string to prepend.
+</ParamField>
+
+---
+
+### setFolder(_:)
+
+```swift
+@discardableResult
+open func setFolder(_ folder: String) -> Self
+```
+
+Places the uploaded resource in the specified folder. The folder name is included in the public ID path.
+
+<ParamField path="folder" type="String" required>
+  The target folder path (e.g., `"marketing/2026"`).
+</ParamField>
+
+---
+
+### setAssetFolder(_:)
+
+```swift
+@discardableResult
+open func setAssetFolder(_ assetFolder: String) -> Self
+```
+
+Sets the DAM asset folder where the resource is stored. Used with Cloudinary's Digital Asset Management features.
+
+<ParamField path="assetFolder" type="String" required>
+  The DAM asset folder path.
+</ParamField>
+
+---
+
+### setDisplayName(_:)
+
+```swift
+@discardableResult
+open func setDisplayName(_ displayName: String) -> Self
+```
+
+Sets the human-readable display name for the resource.
+
+<ParamField path="displayName" type="String" required>
+  The display name to assign.
+</ParamField>
+
+---
+
+### setUseFilenameAsDisplayName(_:)
+
+```swift
+@discardableResult
+open func setUseFilenameAsDisplayName(_ useFilenameAsDisplayName: Bool) -> Self
+```
+
+When `true`, the original filename of the uploaded resource is used as its display name.
+
+<ParamField path="useFilenameAsDisplayName" type="Bool" required>
+  Pass `true` to use the filename as the display name.
+</ParamField>
+
+---
+
+## Filename handling
+
+### setUseFilename(_:)
+
+```swift
+@discardableResult
+open func setUseFilename(_ useFilename: Bool) -> Self
+```
+
+When `true`, the original filename is used as the public ID (normalized, with random characters appended for uniqueness). Default: `false`.
+
+<ParamField path="useFilename" type="Bool" required>
+  Pass `true` to derive the public ID from the filename.
+</ParamField>
+
+---
+
+### setUniqueFilename(_:)
+
+```swift
+@discardableResult
+open func setUniqueFilename(_ uniqueFilename: Bool) -> Self
+```
+
+When `false`, no random characters are appended to the filename-derived public ID. Only relevant when `setUseFilename(true)` is also set. Default: `true`.
+
+<ParamField path="uniqueFilename" type="Bool" required>
+  Pass `false` to use the exact filename without uniqueness suffix.
+</ParamField>
+
+---
+
+### setDiscardOriginalFilename(_:)
+
+```swift
+@discardableResult
+open func setDiscardOriginalFilename(_ discardOriginalFilename: Bool) -> Self
+```
+
+When `true`, the original filename is discarded when the resource is delivered as an attachment. Default: `false`.
+
+<ParamField path="discardOriginalFilename" type="Bool" required>
+  Pass `true` to discard the filename in attachment deliveries.
+</ParamField>
+
+---
+
+### setFilenameOverride(_:)
+
+```swift
+@discardableResult
+open func setFilenameOverride(_ filenameOverride: String) -> Self
+```
+
+Overrides the original asset name with the given value.
+
+<ParamField path="filenameOverride" type="String" required>
+  The new filename to use instead of the original.
+</ParamField>
+
+---
+
+## Resource type and delivery type
+
+### setResourceType(_:)
+
+Inherited from `CLDRequestParams`. Sets the resource type sent as part of the upload URL.
+
+```swift
+@discardableResult
+open func setResourceType(_ resourceType: CLDUrlResourceType) -> Self
+// or
+@discardableResult
+open func setResourceType(_ resourceType: String) -> Self
+```
+
+<ParamField path="resourceType" type="CLDUrlResourceType | String" required>
+  One of `image`, `video`, or `raw`. Defaults to `image` when not specified.
+</ParamField>
+
+---
+
+### setType(_:)
+
+```swift
+@discardableResult
+open func setType(_ type: CLDType) -> Self
+// or
+@discardableResult
+open func setType(_ type: String) -> Self
+```
+
+Sets the delivery type, which controls access to the resource after upload. Default: `upload` (public).
+
+<ParamField path="type" type="CLDType | String" required>
+  `upload` (public), `private`, or `authenticated`.
+</ParamField>
+
+---
+
+### setFormat(_:)
+
+```swift
+open func setFormat(_ format: String) -> Self
+```
+
+Converts the uploaded resource to the given format before saving. For example, pass `"jpg"` to convert a PNG to JPEG on ingest.
+
+<ParamField path="format" type="String" required>
+  Target format extension (e.g., `"jpg"`, `"webp"`, `"mp4"`).
+</ParamField>
+
+---
+
+## Upload preset and signing
+
+### setUploadPreset(_:)
+
+```swift
+@discardableResult
+open func setUploadPreset(_ uploadPreset: String) -> Self
+```
+
+Sets the upload preset. For unsigned uploads you should pass the preset directly to the `CLDUploader` method instead of setting it here; the SDK sets it automatically.
+
+<ParamField path="uploadPreset" type="String" required>
+  The upload preset name from your Cloudinary account settings.
+</ParamField>
+
+---
+
+### setSignature(_:)
+
+Inherited from `CLDRequestParams`. Provides an externally generated signature so the SDK does not need to sign the request itself.
+
+```swift
+@discardableResult
+open func setSignature(_ signature: CLDSignature) -> Self
+```
+
+<ParamField path="signature" type="CLDSignature" required>
+  A `CLDSignature` object containing the pre-computed signature and timestamp.
+</ParamField>
+
+---
+
+## Tags and context
+
+### setTags(_:)
+
+```swift
+@discardableResult
+open func setTags(_ tags: [String]) -> Self
+// or
+@discardableResult
+open func setTags(_ tags: String) -> Self
+```
+
+Assigns one or more tags to the uploaded resource.
+
+<ParamField path="tags" type="[String] | String" required>
+  An array of tag strings, or a single comma-separated string (e.g., `"nature,outdoors"`).
+</ParamField>
+
+```swift
+params.setTags(["hero", "homepage", "2026"])
+```
+
+---
+
+### setContext(_:)
+
+```swift
+@discardableResult
+open func setContext(_ context: [String: String]) -> Self
+// or
+@discardableResult
+open func setContext(_ context: String) -> Self
+```
+
+Attaches key-value context metadata to the uploaded resource. Values are accessible via the Admin API.
+
+<ParamField path="context" type="[String: String] | String" required>
+  A dictionary of metadata pairs, or a pre-encoded string in the format `key=value|key2=value2`.
+</ParamField>
+
+```swift
+params.setContext(["alt": "Company logo", "caption": "Used in header"])
+```
+
+---
+
+### setAllowedFormats(_:)
+
+```swift
+@discardableResult
+open func setAllowedFormats(_ allowedFormats: [String]) -> Self
+// or
+@discardableResult
+open func setAllowedFormats(_ allowedFormats: String) -> Self
+```
+
+Restricts the upload to specific file formats. Uploads of other types are rejected.
+
+<ParamField path="allowedFormats" type="[String] | String" required>
+  An array of format strings (e.g., `["jpg", "png", "mp4"]`) or a comma-separated string.
+</ParamField>
+
+---
+
+## Transformations
+
+### setTransformation(_:)
+
+```swift
+@discardableResult
+open func setTransformation(_ transformation: CLDTransformation) -> Self
+// or
+@discardableResult
+open func setTransformation(_ transformation: String) -> Self
+```
+
+Applies an incoming transformation to the resource before it is saved in the cloud. Any transformation parameters supported by the upload API can be used here.
+
+<ParamField path="transformation" type="CLDTransformation | String" required>
+  The transformation to apply. Pass a `CLDTransformation` object or an already-encoded transformation string.
+</ParamField>
+
+```swift
+params.setTransformation(
+    CLDTransformation().setWidth(1200).setHeight(800).setGravity("auto").setCrop("fill")
+)
+```
+
+---
+
+### setEager(_:)
+
+```swift
+@discardableResult
+open func setEager(_ eager: [CLDTransformation]) -> Self
+// or
+@discardableResult
+open func setEager(_ eager: String) -> Self
+```
+
+Requests that Cloudinary generate one or more derived resources eagerly at upload time, rather than on first access.
+
+<ParamField path="eager" type="[CLDTransformation] | String" required>
+  An array of `CLDTransformation` or `CLDEagerTransformation` objects, or a pre-encoded eager string.
+</ParamField>
+
+---
+
+### setQualityOverride(_:)
+
+```swift
+@discardableResult
+open func setQualityOverride(_ quality: CLDTransformation.CLDQuality) -> Self
+// or
+@discardableResult
+open func setQualityOverride(_ quality: String) -> Self
+```
+
+Overrides the default quality setting for the stored resource.
+
+<ParamField path="quality" type="CLDTransformation.CLDQuality | String" required>
+  A quality descriptor such as `CLDTransformation.CLDQuality.auto()` or the string `"auto:best"`.
+</ParamField>
+
+---
+
+## Coordinates
+
+### setFaceCoordinates(_:)
+
+```swift
+@discardableResult
+open func setFaceCoordinates(_ faceCoordinates: [CLDCoordinate]) -> Self
+// or
+@discardableResult
+open func setFaceCoordinates(_ faceCoordinates: String) -> Self
+```
+
+Overrides automatically detected face coordinates. Each `CLDCoordinate` specifies a `CGRect` with the top-left corner and the width/height of a face.
+
+<ParamField path="faceCoordinates" type="[CLDCoordinate] | String" required>
+  An array of face coordinate objects, or a pre-encoded coordinate string.
+</ParamField>
+
+---
+
+### setCustomCoordinates(_:)
+
+```swift
+@discardableResult
+open func setCustomCoordinates(_ customCoordinates: [CLDCoordinate]) -> Self
+// or
+@discardableResult
+open func setCustomCoordinates(_ customCoordinates: String) -> Self
+```
+
+Sets custom coordinates used as the gravity center when cropping with `gravity: custom`.
+
+<ParamField path="customCoordinates" type="[CLDCoordinate] | String" required>
+  An array of coordinate objects, or a pre-encoded string.
+</ParamField>
+
+---
+
+## Webhooks and proxy
+
+### setNotificationUrl(_:)
+
+```swift
+open func setNotificationUrl(_ notificationUrl: String) -> Self
+```
+
+Sets an HTTP URL that Cloudinary calls (webhook) when the upload completes.
+
+<ParamField path="notificationUrl" type="String" required>
+  The full webhook URL to notify.
+</ParamField>
+
+---
+
+### setEagerNotificationUrl(_:)
+
+```swift
+open func setEagerNotificationUrl(_ eagerNotificationUrl: String) -> Self
+```
+
+Sets an HTTP URL that Cloudinary calls when all eager transformations have been generated.
+
+<ParamField path="eagerNotificationUrl" type="String" required>
+  The full webhook URL to notify.
+</ParamField>
+
+---
+
+### setProxy(_:)
+
+```swift
+open func setProxy(_ proxy: String) -> Self
+```
+
+Routes Cloudinary's fetch of a remote URL through the specified proxy. Format: `http://hostname:port`.
+
+<ParamField path="proxy" type="String" required>
+  Proxy URL string in the format `http://hostname:port`.
+</ParamField>
+
+---
+
+## Boolean flags
+
+### setBackup(_:)
+
+```swift
+@discardableResult
+open func setBackup(_ backup: Bool) -> Self
+```
+
+Overrides the account-level backup setting for this upload. When `true`, a backup copy of the resource is stored.
+
+<ParamField path="backup" type="Bool" required>
+  `true` to back up this resource.
+</ParamField>
+
+---
+
+### setOverwrite(_:)
+
+```swift
+@discardableResult
+open func setOverwrite(_ overwrite: Bool) -> Self
+```
+
+When `true`, overwrites an existing resource with the same public ID. Default: `true` for signed uploads; always `false` for unsigned uploads.
+
+<ParamField path="overwrite" type="Bool" required>
+  `false` to abort the upload when a resource with the same public ID already exists.
+</ParamField>
+
+---
+
+### setInvalidate(_:)
+
+```swift
+@discardableResult
+open func setInvalidate(_ invalidate: Bool) -> Self
+```
+
+When `true`, invalidates CDN-cached copies of the resource at its old URL after the upload. Default: `false`.
+
+<ParamField path="invalidate" type="Bool" required>
+  `true` to purge the CDN cache for this resource.
+</ParamField>
+
+---
+
+### setAsync(_:)
+
+```swift
+@discardableResult
+open func setAsync(_ async: Bool) -> Self
+```
+
+When `true`, performs any requested transformations asynchronously in the background. Default: `false`.
+
+<ParamField path="async" type="Bool" required>
+  `true` to process transformations asynchronously.
+</ParamField>
+
+---
+
+### setEagerAsync(_:)
+
+```swift
+@discardableResult
+open func setEagerAsync(_ eagerAsync: Bool) -> Self
+```
+
+When `true`, generates eager transformations asynchronously. Default: `false`.
+
+<ParamField path="eagerAsync" type="Bool" required>
+  `true` to generate eager transformations in the background.
+</ParamField>
+
+---
+
+### setFaces(_:)
+
+```swift
+@discardableResult
+open func setFaces(_ faces: Bool) -> Self
+```
+
+When `true`, returns the coordinates of detected faces in the upload response. Default: `false`.
+
+<ParamField path="faces" type="Bool" required>
+  `true` to include face coordinates in the response.
+</ParamField>
+
+---
+
+### setColors(_:)
+
+```swift
+@discardableResult
+open func setColors(_ colors: Bool) -> Self
+```
+
+When `true`, returns predominant colors and a color histogram in the upload response. Default: `false`.
+
+<ParamField path="colors" type="Bool" required>
+  `true` to include color analysis in the response.
+</ParamField>
+
+---
+
+### setImageMetadata(_:)
+
+```swift
+@discardableResult
+open func setImageMetadata(_ imageMetadata: Bool) -> Self
+```
+
+When `true`, returns IPTC and detailed Exif metadata in the upload response. Default: `false`.
+
+<Warning>
+  Deprecated. Use `setMediaMetadata(_:)` instead.
+</Warning>
+
+<ParamField path="imageMetadata" type="Bool" required>
+  `true` to include image metadata in the response.
+</ParamField>
+
+---
+
+### setMediaMetadata(_:)
+
+```swift
+@discardableResult
+open func setMediaMetadata(_ mediaMetadata: Bool) -> Self
+```
+
+When `true`, returns IPTC, XMP, and detailed Exif metadata in the upload response. Default: `false`.
+
+<ParamField path="mediaMetadata" type="Bool" required>
+  `true` to include full media metadata in the response.
+</ParamField>
+
+---
+
+### setPhash(_:)
+
+```swift
+@discardableResult
+open func setPhash(_ phash: Bool) -> Self
+```
+
+When `true`, returns the perceptual hash (pHash) of the image — a fingerprint useful for similarity comparisons. Default: `false`.
+
+<ParamField path="phash" type="Bool" required>
+  `true` to include the pHash in the response.
+</ParamField>
+
+---
+
+### setReturnDeleteToken(_:)
+
+```swift
+@discardableResult
+open func setReturnDeleteToken(_ returnDeleteToken: Bool) -> Self
+```
+
+When `true`, returns a deletion token in the upload response. The token can be used to delete the resource within 10 minutes without authentication. Default: `false`.
+
+<ParamField path="returnDeleteToken" type="Bool" required>
+  `true` to include a deletion token in the response.
+</ParamField>
+
+---
+
+### setQualityAnalysis(_:)
+
+```swift
+@discardableResult
+open func setQualityAnalysis(_ qualityAnalysis: Bool) -> Self
+```
+
+When `true`, returns a quality analysis score in the upload response. Default: `false`.
+
+<ParamField path="qualityAnalysis" type="Bool" required>
+  `true` to include quality analysis in the response.
+</ParamField>
+
+---
+
+### setAccessibilityAnalysis(_:)
+
+```swift
+@discardableResult
+open func setAccessibilityAnalysis(_ accessibilityAnalysis: Bool) -> Self
+```
+
+When `true`, returns accessibility analysis results (e.g., colorblindness simulation scores) in the upload response. Default: `false`.
+
+<ParamField path="accessibilityAnalysis" type="Bool" required>
+  `true` to include accessibility analysis in the response.
+</ParamField>
+
+---
+
+## AI and add-on features
+
+### setBackgroundRemoval(_:)
+
+```swift
+@discardableResult
+open func setBackgroundRemoval(_ backgroundRemoval: String) -> Self
+```
+
+Triggers automatic background removal on upload. Pass `"cloudinary_ai"` to remove the background using Cloudinary's AI, or `"cloudinary_ai:<object>"` to keep a specific foreground object.
+
+<ParamField path="backgroundRemoval" type="String" required>
+  `"cloudinary_ai"` or `"cloudinary_ai:<object_to_keep>"`.
+</ParamField>
+
+```swift
+params.setBackgroundRemoval("cloudinary_ai")
+```
+
+---
+
+### setAutoChaptering(_:)
+
+```swift
+@discardableResult
+open func setAutoChpatering(_ autoChaptering: Bool) -> Self
+```
+
+When `true`, automatically generates a chapters file for video assets. Default: `false`.
+
+<Note>
+  Note the method name contains a typo (`setAutoChpatering`) inherited from the source. Use the exact spelling shown here.
+</Note>
+
+<ParamField path="autoChaptering" type="Bool" required>
+  `true` to generate an automatic chapters file.
+</ParamField>
+
+---
+
+### setAutoTranscription(_:)
+
+```swift
+@discardableResult
+open func setAutoTranscription(_ autoTranscription: Bool) -> Self
+```
+
+When `true`, automatically generates a transcription file for audio/video assets. Default: `false`.
+
+<ParamField path="autoTranscription" type="Bool" required>
+  `true` to generate an automatic transcription.
+</ParamField>
+
+---
+
+### setOcr(_:)
+
+```swift
+@discardableResult
+open func setOcr(_ enable: Bool) -> Self
+// or
+@discardableResult
+open func setOcr(_ ocrString: String?) -> Self
+```
+
+Enables OCR text detection on the uploaded image. Passing `true` sets the value to `"adv_ocr"` (Advanced OCR add-on). Passing `false` or `nil` removes the parameter.
+
+<ParamField path="enable" type="Bool | String?" required>
+  `true` to enable Advanced OCR, `false` or `nil` to disable. Pass a custom string to use a specific OCR add-on.
+</ParamField>
+
+---
+
+### setDetection(_:)
+
+```swift
+@discardableResult
+open func setDetection(_ detection: String) -> Self
+```
+
+Enables object or face detection using the specified add-on. Pass `"adv_face"` to use the Advanced Facial Attribute Detection add-on.
+
+<ParamField path="detection" type="String" required>
+  The detection add-on identifier.
+</ParamField>
+
+---
+
+### setCategorization(_:)
+
+```swift
+@discardableResult
+open func setCategorization(_ categorization: String) -> Self
+```
+
+Automatically classifies the scenes of the uploaded image. Pass `"imagga_tagging"` to use the Imagga add-on.
+
+<ParamField path="categorization" type="String" required>
+  The categorization add-on identifier.
+</ParamField>
+
+---
+
+### setAutoTagging(_:)
+
+```swift
+@discardableResult
+open func setAutoTagging(_ autoTagging: Double) -> Self
+// or
+@discardableResult
+open func setAutoTagging(_ autoTagging: String) -> Self
+```
+
+Assigns tags to the image based on detected scene categories whose confidence score exceeds the given threshold (between `0.0` and `1.0`). Requires the Imagga Auto Tagging add-on.
+
+<ParamField path="autoTagging" type="Double | String" required>
+  Confidence threshold between `0.0` and `1.0`. Tags are assigned only for categories above this threshold.
+</ParamField>
+
+---
+
+### setSimilaritySearch(_:)
+
+```swift
+@discardableResult
+open func setSimilaritySearch(_ similaritySearch: String) -> Self
+```
+
+Enables the similarity search add-on for the uploaded resource.
+
+<ParamField path="similaritySearch" type="String" required>
+  The similarity search add-on identifier.
+</ParamField>
+
+---
+
+### setRawConvert(_:)
+
+```swift
+@discardableResult
+open func setRawConvert(_ rawConvert: String) -> Self
+```
+
+Converts Office documents to PDF or other image formats on upload. Pass `"aspose"` to use the Aspose Document Conversion add-on.
+
+<ParamField path="rawConvert" type="String" required>
+  The raw conversion add-on identifier (e.g., `"aspose"`).
+</ParamField>
+
+---
+
+## Moderation
+
+### setModeration(_:)
+
+```swift
+@discardableResult
+open func setModeration(_ moderation: CLDModeration) -> Self
+// or
+open func setModeration(_ moderation: String) -> Self
+```
+
+Adds the uploaded image to a moderation queue. Pass `"manual"` to review via the Cloudinary Console or API. Pass `"webpurify"` to use the WebPurify Image Moderation add-on.
+
+<ParamField path="moderation" type="CLDModeration | String" required>
+  `"manual"` or `"webpurify"`.
+</ParamField>
+
+---
+
+## Responsive breakpoints
+
+### setResponsiveBreakpoints(_:)
+
+```swift
+@discardableResult
+open func setResponsiveBreakpoints(
+    _ responsiveBreakpoints: [CLDResponsiveBreakpoints]
+) -> Self
+```
+
+Instructs Cloudinary to automatically generate optimal breakpoint images for responsive design.
+
+<ParamField path="responsiveBreakpoints" type="[CLDResponsiveBreakpoints]" required>
+  An array of `CLDResponsiveBreakpoints` objects, each describing the constraints for a set of breakpoints (min/max width, step size, etc.).
+</ParamField>
+
+---
+
+## Access control
+
+### setAccessControl(_:)
+
+```swift
+@discardableResult
+open func setAccessControl(_ accessControl: [CLDAccessControlRule]) -> Self
+// or
+@discardableResult
+open func setAccessControl(_ accessControl: String) -> Self
+```
+
+Sets access control rules that determine who can access the resource.
+
+<ParamField path="accessControl" type="[CLDAccessControlRule] | String" required>
+  An array of `CLDAccessControlRule` objects, or a JSON string representing the rules.
+</ParamField>
+
+---
+
+## Custom logic
+
+### setEval(_:)
+
+```swift
+@discardableResult
+open func setEval(_ eval: String) -> Self
+```
+
+Applies custom JavaScript logic that runs server-side during the upload process to modify upload parameters dynamically.
+
+<ParamField path="eval" type="String" required>
+  A JavaScript expression string evaluated by Cloudinary at upload time.
+</ParamField>
+
+---
+
+## HTTP headers
+
+### setHeaders(_:)
+
+```swift
+@discardableResult
+open func setHeaders(_ headers: [String: String]) -> Self
+// or
+@discardableResult
+open func setHeaders(_ headers: String) -> Self
+```
+
+Sets HTTP headers to include when Cloudinary delivers the resource to end users. Supported headers: `Link`, `X-Robots-Tag`.
+
+<ParamField path="headers" type="[String: String] | String" required>
+  A dictionary of header name-value pairs, or a pre-formatted header string.
+</ParamField>
+
+```swift
+params.setHeaders(["X-Robots-Tag": "noindex"])
+```
+
+---
+
+## Generic setter
+
+### setParam(_:value:)
+
+Inherited from `CLDRequestParams`. Sets an arbitrary parameter by key. Use this to pass parameters not yet covered by a typed setter.
+
+```swift
+@discardableResult
+open func setParam(_ key: String, value: Any?) -> Self
+```
+
+<ParamField path="key" type="String" required>
+  The raw API parameter name.
+</ParamField>
+
+<ParamField path="value" type="Any?" required>
+  The parameter value.
+</ParamField>
+
+---
+
+## Readable properties
+
+All parameters you set are also readable as typed properties on the instance.
+
+| Property | Type | Description |
+|---|---|---|
+| `publicId` | `String?` | The assigned public ID. |
+| `folder` | `String?` | The target folder. |
+| `assetFolder` | `String?` | The DAM asset folder. |
+| `displayName` | `String?` | The display name. |
+| `format` | `String?` | The target file format. |
+| `type` | `String?` | The delivery type. |
+| `tags` | `String?` | Comma-separated tags. |
+| `context` | `String?` | Encoded context metadata. |
+| `transformation` | `String?` | Encoded transformation string. |
+| `eager` | `String?` | Encoded eager transformations. |
+| `notificationUrl` | `String?` | Webhook URL. |
+| `eagerNotificationUrl` | `String?` | Eager webhook URL. |
+| `proxy` | `String?` | Proxy URL. |
+| `useFilename` | `Bool?` | Whether to use the original filename. |
+| `uniqueFilename` | `Bool?` | Whether to append random suffix to filename. |
+| `discardOriginalFilename` | `Bool?` | Whether to discard the original filename. |
+| `faces` | `Bool?` | Whether face coordinates are requested. |
+| `colors` | `Bool?` | Whether color analysis is requested. |
+| `imageMetadata` | `Bool?` | Whether image metadata is requested. |
+| `qualityAnalysis` | `Bool?` | Whether quality analysis is requested. |
+| `accessibilityAnalysis` | `Bool?` | Whether accessibility analysis is requested. |
+| `backup` | `Bool?` | Whether backup is enabled. |
+| `overwrite` | `Bool?` | Whether overwrite is enabled. |
+| `invalidate` | `Bool?` | Whether CDN invalidation is requested. |
+| `async` | `Bool?` | Whether processing is asynchronous. |
+| `eagerAsync` | `Bool?` | Whether eager processing is asynchronous. |
+| `phash` | `Bool?` | Whether pHash is requested. |
+| `returnDeleteToken` | `Bool?` | Whether a delete token is requested. |
+| `moderation` | `String?` | The moderation mode. |
+| `uploadPreset` | Not exposed | Set via `setUploadPreset(_:)`. |
+| `backgroundRemoval` | `String?` | Background removal mode. |
+| `autoChaptering` | `Bool?` | Whether auto chaptering is enabled. |
+| `autoTranscription` | `Bool?` | Whether auto transcription is enabled. |
+| `filenameOverride` | `String?` | The filename override value. |

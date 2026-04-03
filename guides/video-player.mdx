@@ -1,0 +1,227 @@
+---
+title: "Play videos with CLDVideoPlayer"
+description: "CLDVideoPlayer is an AVPlayer subclass that streams Cloudinary videos by public ID, with optional automatic quality adaptation and built-in analytics."
+keywords: ["CLDVideoPlayer", "AVPlayer", "video", "streaming", "automaticStreamingProfile", "analytics", "iOS 10"]
+---
+
+`CLDVideoPlayer` is a subclass of `AVPlayer` that accepts a Cloudinary public ID and handles URL generation, streaming configuration, and playback analytics automatically. You embed it in the standard `AVPlayerViewController` (or a custom `AVPlayerLayer`) exactly as you would any `AVPlayer`.
+
+<Warning>
+  `CLDVideoPlayer` requires **iOS 10.0 or later**. The class is annotated `@available(iOS 10.0, *)`.
+</Warning>
+
+## Initializing the player
+
+The primary initializer accepts a public ID and a `CLDCloudinary` instance.
+
+```swift
+import AVKit
+import Cloudinary
+
+let player = CLDVideoPlayer(
+    publicId: "videos/product-demo",
+    cloudinary: cloudinary
+)
+```
+
+### Initializer parameters
+
+<ParamField path="publicId" type="String" required>
+  The public ID of the Cloudinary video asset, for example `"videos/product-demo"`. Do not include the file extension.
+</ParamField>
+
+<ParamField path="cloudinary" type="CLDCloudinary" required>
+  The configured `CLDCloudinary` instance used to build the delivery URL.
+</ParamField>
+
+<ParamField path="transformation" type="CLDTransformation?" default="nil">
+  An optional `CLDTransformation` applied to the video URL. If you supply a transformation, the automatic streaming profile is not applied even when `automaticStreamingProfile` is `true`.
+</ParamField>
+
+<ParamField path="automaticStreamingProfile" type="Bool?" default="false">
+  When `true` and no `transformation` is provided, the player requests an HLS stream (`m3u8` format) with the `auto` streaming profile. Cloudinary then selects the appropriate bitrate and resolution for the viewer's network conditions.
+</ParamField>
+
+## Automatic quality adaptation
+
+Setting `automaticStreamingProfile` to `true` switches the delivery format to HLS and appends the `auto` streaming profile transformation. The player requests the stream at the bitrate that best matches the current network throughput, stepping up or down as conditions change.
+
+```swift
+let player = CLDVideoPlayer(
+    publicId: "videos/product-demo",
+    cloudinary: cloudinary,
+    automaticStreamingProfile: true
+)
+```
+
+<Note>
+  `automaticStreamingProfile` only takes effect when the `transformation` parameter is `nil`. If you pass a custom `CLDTransformation`, you are responsible for including any streaming profile parameters yourself.
+</Note>
+
+## Embedding in AVPlayerViewController
+
+`CLDVideoPlayer` is an `AVPlayer`, so embed it in `AVPlayerViewController` using the standard `player` property.
+
+<Steps>
+  <Step title="Create the player">
+    ```swift
+    let player = CLDVideoPlayer(
+        publicId: "videos/product-demo",
+        cloudinary: cloudinary,
+        automaticStreamingProfile: true
+    )
+    ```
+  </Step>
+  <Step title="Create AVPlayerViewController">
+    ```swift
+    let playerViewController = AVPlayerViewController()
+    playerViewController.player = player
+    ```
+  </Step>
+  <Step title="Present and start playback">
+    ```swift
+    present(playerViewController, animated: true) {
+        player.play()
+    }
+    ```
+  </Step>
+</Steps>
+
+## Video analytics
+
+`CLDVideoPlayer` tracks playback events and reports them to Cloudinary's video analytics endpoint. Analytics are **enabled by default** (`analytics = true`).
+
+### Events tracked automatically
+
+| Event | Trigger |
+|---|---|
+| `viewStart` | Player status changes to `.readyToPlay` |
+| `loadMetadata` | Asset duration becomes available |
+| `play` | `timeControlStatus` changes to `.playing` |
+| `pause` | `timeControlStatus` changes to `.paused` |
+| `viewEnd` | Player is deallocated or `flushEventsAndCloseSession()` is called |
+
+Events are batched and sent to `https://video-analytics-api.cloudinary.com/v1/video-analytics`.
+
+### Configuring analytics mode
+
+Call `setAnalytics(_:cloudName:publicId:)` to control how the player reports events.
+
+```swift
+// Automatic tracking (default)
+player.setAnalytics(.auto, cloudName: "my-cloud", publicId: "videos/product-demo")
+
+// Manual tracking — you control when events are sent
+player.setAnalytics(.manual, cloudName: "my-cloud", publicId: "videos/product-demo")
+
+// Disable analytics entirely
+player.setAnalytics(.disabled, cloudName: nil, publicId: nil)
+```
+
+`AnalyticsType` has three cases:
+
+| Case | Behavior |
+|---|---|
+| `.auto` | SDK sends events automatically based on player state changes |
+| `.manual` | SDK queues events; you call `flushEvents()` to send them |
+| `.disabled` | No events are recorded or sent |
+
+### Attaching custom data to events
+
+Attach additional metadata to every event using `setProvidedData(data:)`. The dictionary is included in the `providedData` field of each event payload.
+
+```swift
+player.setProvidedData(data: [
+    "userId": "user-123",
+    "contentCategory": "product-demo"
+])
+```
+
+### Manually flushing events
+
+```swift
+// Send queued events without ending the session
+player.flushEvents()
+
+// Send queued events and record a viewEnd event
+player.flushEventsAndCloseSession()
+```
+
+<Tip>
+  Call `flushEventsAndCloseSession()` when your view controller dismisses the player, to ensure the session end event is recorded even if the player is not immediately deallocated.
+</Tip>
+
+## Other initializers
+
+In addition to the primary public-ID–based initializer, `CLDVideoPlayer` exposes the standard `AVPlayer` initializers for cases where you already have a URL or an `AVPlayerItem`.
+
+<Tabs>
+  <Tab title="URL string">
+    ```swift
+    let player = CLDVideoPlayer(url: "https://res.cloudinary.com/my-cloud/video/upload/sample.mp4")
+    ```
+  </Tab>
+  <Tab title="URL">
+    ```swift
+    let url = URL(string: "https://res.cloudinary.com/my-cloud/video/upload/sample.mp4")!
+    let player = CLDVideoPlayer(url: url)
+    ```
+  </Tab>
+  <Tab title="AVPlayerItem">
+    ```swift
+    let item = AVPlayerItem(url: url)
+    let player = CLDVideoPlayer(playerItem: item)
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  Analytics observers are only set up by the parameterless `override init()` initializer. When using the URL or `AVPlayerItem` initializers, analytics are not active unless you configure them manually.
+</Note>
+
+## Complete example
+
+```swift
+import UIKit
+import AVKit
+import Cloudinary
+
+class VideoPlayerViewController: UIViewController {
+
+    private let cloudinary = CLDCloudinary(
+        configuration: CLDConfiguration(cloudName: "my-cloud", apiKey: "my-key")
+    )
+
+    private var player: CLDVideoPlayer?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        presentVideo()
+    }
+
+    private func presentVideo() {
+        let player = CLDVideoPlayer(
+            publicId: "videos/product-demo",
+            cloudinary: cloudinary,
+            automaticStreamingProfile: true
+        )
+
+        // Attach custom metadata to analytics events
+        player.setProvidedData(data: ["screen": "product-detail"])
+
+        let playerVC = AVPlayerViewController()
+        playerVC.player = player
+
+        present(playerVC, animated: true) {
+            player.play()
+        }
+
+        self.player = player
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        player?.flushEventsAndCloseSession()
+    }
+}
+```

@@ -1,0 +1,846 @@
+---
+title: 'CLDUploader'
+description: 'Upload assets to your Cloudinary account from URLs, raw Data, or local files—including large-file chunked uploads with preprocessing support.'
+---
+
+`CLDUploader` handles all upload operations against the Cloudinary API. Obtain an instance by calling `createUploader()` on your `CLDCloudinary` object. All methods are asynchronous and return a `CLDUploadRequest` that you can use to observe progress, handle the response, or cancel the transfer.
+
+```swift
+let uploader = cloudinary.createUploader()
+```
+
+<Note>
+  You must not instantiate `CLDUploader` directly. Always obtain it through `CLDCloudinary.createUploader()`.
+</Note>
+
+---
+
+## Constants
+
+### defaultChunkSize
+
+```swift
+static public let defaultChunkSize = 20 * 1024 * 1024
+```
+
+The default chunk size used by `uploadLarge` methods — **20 MB**. You can override this per call by passing a custom `chunkSize` value. The minimum accepted chunk size is 5 MB.
+
+---
+
+## Unsigned uploads
+
+Use unsigned uploads when your app cannot access API credentials at runtime. Supply an upload preset configured in the Cloudinary dashboard.
+
+### upload(url:uploadPreset:params:progress:completionHandler:)
+
+Uploads a file from a URL using an unsigned upload preset. The URL can point to a local file on the device or to a remote resource.
+
+```swift
+@discardableResult
+open func upload(
+    url: URL,
+    uploadPreset: String,
+    params: CLDUploadRequestParams? = nil,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL (e.g., from the app bundle or the photo library) or a remote HTTPS URL pointing to the resource to upload.
+</ParamField>
+
+<ParamField path="uploadPreset" type="String" required>
+  The name of the unsigned upload preset defined in your Cloudinary account settings.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Additional upload parameters such as tags, transformation, folder, and so on. When `nil`, a default `CLDUploadRequestParams` instance is created automatically. The SDK sets `signed = false` and the `uploadPreset` on this object before dispatching the request.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  A closure called periodically on an unspecified queue as data is transferred. The `Progress` object contains `completedUnitCount` and `totalUnitCount` in bytes.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes. Exactly one of `response` or `error` is non-nil.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle you can use to add additional progress or response closures, or to cancel, suspend, or resume the transfer.
+</ResponseField>
+
+```swift
+uploader.upload(url: fileUrl, uploadPreset: "my_preset") { result, error in
+    if let id = result?.publicId {
+        print("Uploaded: \(id)")
+    }
+}
+```
+
+---
+
+### upload(url:uploadPreset:params:preprocessChain:progress:completionHandler:)
+
+Uploads a file from a URL with unsigned authentication and runs a preprocessing chain on the resource before uploading.
+
+```swift
+@discardableResult
+open func upload<T>(
+    url: URL,
+    uploadPreset: String,
+    params: CLDUploadRequestParams? = nil,
+    preprocessChain: CLDPreprocessChain<T>,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local or remote URL pointing to the file to upload.
+</ParamField>
+
+<ParamField path="uploadPreset" type="String" required>
+  The unsigned upload preset name.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters. Defaults to an empty `CLDUploadRequestParams` instance.
+</ParamField>
+
+<ParamField path="preprocessChain" type="CLDPreprocessChain<T>" required>
+  A chain of processing steps (e.g., resize, compress) and/or a custom encoder applied to the resource before it is sent to Cloudinary. The chain executes on a background queue.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure called periodically during the transfer.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes with either a result or an error.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the upload.
+</ResponseField>
+
+---
+
+### upload(data:uploadPreset:params:progress:completionHandler:)
+
+Uploads raw `Data` using an unsigned upload preset.
+
+```swift
+@discardableResult
+open func upload(
+    data: Data,
+    uploadPreset: String,
+    params: CLDUploadRequestParams? = nil,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="data" type="Data" required>
+  The raw bytes to upload. This can be image data, video data, or any other binary resource.
+</ParamField>
+
+<ParamField path="uploadPreset" type="String" required>
+  The unsigned upload preset name.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Additional upload parameters. Defaults to an empty `CLDUploadRequestParams` instance.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure called periodically during the transfer.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the upload.
+</ResponseField>
+
+```swift
+uploader.upload(data: imageData, uploadPreset: "my_preset") { result, error in
+    print(result?.secureUrl ?? "")
+}
+```
+
+---
+
+### upload(data:uploadPreset:params:preprocessChain:progress:completionHandler:)
+
+Uploads raw `Data` with unsigned authentication and a preprocessing chain.
+
+```swift
+@discardableResult
+open func upload<T>(
+    data: Data,
+    uploadPreset: String,
+    params: CLDUploadRequestParams? = nil,
+    preprocessChain: CLDPreprocessChain<T>,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="data" type="Data" required>
+  The raw bytes to upload.
+</ParamField>
+
+<ParamField path="uploadPreset" type="String" required>
+  The unsigned upload preset name.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters.
+</ParamField>
+
+<ParamField path="preprocessChain" type="CLDPreprocessChain<T>" required>
+  Processing steps and/or a custom encoder to apply before upload.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure called periodically during the transfer.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the upload.
+</ResponseField>
+
+---
+
+## Signed uploads
+
+Signed uploads authenticate the request using your API key and secret. Use these methods in server-assisted or trusted-device scenarios.
+
+### signedUpload(url:params:progress:completionHandler:)
+
+Uploads a file from a URL using signed authentication.
+
+```swift
+@discardableResult
+open func signedUpload(
+    url: URL,
+    params: CLDUploadRequestParams? = nil,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL or a remote URL to upload.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters including any optional signature override. The SDK sets `signed = true` automatically.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure called periodically during the transfer.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the upload.
+</ResponseField>
+
+```swift
+let params = CLDUploadRequestParams()
+    .setPublicId("my-image")
+    .setFolder("uploads")
+
+uploader.signedUpload(url: fileUrl, params: params) { result, error in
+    print(result?.publicId ?? "")
+}
+```
+
+---
+
+### signedUpload(url:params:preprocessChain:progress:completionHandler:)
+
+Uploads a file from a URL with signed authentication and a preprocessing chain.
+
+```swift
+@discardableResult
+open func signedUpload<T>(
+    url: URL,
+    params: CLDUploadRequestParams? = nil,
+    preprocessChain: CLDPreprocessChain<T>,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local or remote URL pointing to the file to upload.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters. The SDK sets `signed = true` automatically.
+</ParamField>
+
+<ParamField path="preprocessChain" type="CLDPreprocessChain<T>" required>
+  Processing steps and/or a custom encoder applied to the resource before upload.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure called periodically during the transfer.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the upload.
+</ResponseField>
+
+---
+
+### signedUpload(data:params:progress:completionHandler:)
+
+Uploads raw `Data` using signed authentication.
+
+```swift
+@discardableResult
+open func signedUpload(
+    data: Data,
+    params: CLDUploadRequestParams? = nil,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="data" type="Data" required>
+  The raw bytes to upload.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters. The SDK sets `signed = true` automatically.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure called periodically during the transfer.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the upload.
+</ResponseField>
+
+---
+
+### signedUpload(data:params:preprocessChain:progress:completionHandler:)
+
+Uploads raw `Data` with signed authentication and a preprocessing chain.
+
+```swift
+@discardableResult
+open func signedUpload<T>(
+    data: Data,
+    params: CLDUploadRequestParams? = nil,
+    preprocessChain: CLDPreprocessChain<T>,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: ((_ response: CLDUploadResult?, _ error: NSError?) -> ())? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="data" type="Data" required>
+  The raw bytes to upload.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters.
+</ParamField>
+
+<ParamField path="preprocessChain" type="CLDPreprocessChain<T>" required>
+  Processing steps and/or a custom encoder applied before upload.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure called periodically during the transfer.
+</ParamField>
+
+<ParamField path="completionHandler" type="((_ response: CLDUploadResult?, _ error: NSError?) -> ())?">
+  Called once the request finishes.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the upload.
+</ResponseField>
+
+---
+
+## Large file uploads
+
+Use these methods to upload large local files in sequential chunks. The file is split on-device and each chunk is uploaded independently. If a chunk fails the entire request is cancelled. Remote URLs are forwarded to the standard upload endpoint automatically.
+
+<Warning>
+  The minimum `chunkSize` is **5 MB** (`5 * 1024 * 1024`). Passing a smaller value causes the request to fail immediately with an error.
+</Warning>
+
+### uploadLarge(url:uploadPreset:params:chunkSize:progress:completionHandler:)
+
+Uploads a local file in chunks using an unsigned upload preset.
+
+```swift
+@discardableResult
+open func uploadLarge(
+    url: URL,
+    uploadPreset: String,
+    params: CLDUploadRequestParams = CLDUploadRequestParams(),
+    chunkSize: Int = defaultChunkSize,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: CLDUploadCompletionHandler? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL. If the URL points to a remote resource it is forwarded to the standard upload endpoint without chunking.
+</ParamField>
+
+<ParamField path="uploadPreset" type="String" required>
+  The unsigned upload preset name.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters. Defaults to an empty `CLDUploadRequestParams` instance.
+</ParamField>
+
+<ParamField path="chunkSize" type="Int">
+  The size of each chunk in bytes. Defaults to `defaultChunkSize` (20 MB). Must be at least 5 MB.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Progress closure reflecting the aggregate progress across all chunks.
+</ParamField>
+
+<ParamField path="completionHandler" type="CLDUploadCompletionHandler?">
+  Called once all chunks have been uploaded successfully, or on the first chunk error. Signature: `(CLDUploadResult?, NSError?) -> ()`.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle. You can suspend, resume, or cancel the entire multi-chunk transfer through this object.
+</ResponseField>
+
+```swift
+uploader.uploadLarge(
+    url: videoUrl,
+    uploadPreset: "my_preset",
+    chunkSize: 10 * 1024 * 1024,
+    progress: { progress in
+        print("\(Int(progress.fractionCompleted * 100))%")
+    }
+) { result, error in
+    print(result?.publicId ?? "")
+}
+```
+
+---
+
+### uploadLarge(url:uploadPreset:params:preprocessChain:chunkSize:progress:completionHandler:)
+
+Uploads a local file in chunks with unsigned authentication and a preprocessing chain.
+
+```swift
+@discardableResult
+open func uploadLarge<T>(
+    url: URL,
+    uploadPreset: String,
+    params: CLDUploadRequestParams = CLDUploadRequestParams(),
+    preprocessChain: CLDPreprocessChain<T>,
+    chunkSize: Int = defaultChunkSize,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: CLDUploadCompletionHandler? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL.
+</ParamField>
+
+<ParamField path="uploadPreset" type="String" required>
+  The unsigned upload preset name.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters.
+</ParamField>
+
+<ParamField path="preprocessChain" type="CLDPreprocessChain<T>" required>
+  Processing steps applied to the entire file before it is split into chunks.
+</ParamField>
+
+<ParamField path="chunkSize" type="Int">
+  Chunk size in bytes. Defaults to 20 MB. Must be at least 5 MB.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Aggregate progress closure.
+</ParamField>
+
+<ParamField path="completionHandler" type="CLDUploadCompletionHandler?">
+  Called on completion or first chunk error.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the entire transfer.
+</ResponseField>
+
+---
+
+### signedUploadLarge(url:params:chunkSize:progress:completionHandler:)
+
+Uploads a local file in chunks using signed authentication.
+
+```swift
+@discardableResult
+open func signedUploadLarge(
+    url: URL,
+    params: CLDUploadRequestParams = CLDUploadRequestParams(),
+    chunkSize: Int = defaultChunkSize,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: CLDUploadCompletionHandler? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL. Remote URLs are forwarded to the standard upload endpoint.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters. The SDK sets `signed = true` automatically.
+</ParamField>
+
+<ParamField path="chunkSize" type="Int">
+  Chunk size in bytes. Defaults to 20 MB. Must be at least 5 MB.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Aggregate progress closure.
+</ParamField>
+
+<ParamField path="completionHandler" type="CLDUploadCompletionHandler?">
+  Called on completion or first chunk error.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the entire transfer.
+</ResponseField>
+
+---
+
+### signedUploadLarge(url:params:preprocessChain:chunkSize:progress:completionHandler:)
+
+Uploads a local file in chunks with signed authentication and a preprocessing chain.
+
+```swift
+@discardableResult
+open func signedUploadLarge<T>(
+    url: URL,
+    params: CLDUploadRequestParams = CLDUploadRequestParams(),
+    preprocessChain: CLDPreprocessChain<T>,
+    chunkSize: Int = defaultChunkSize,
+    progress: ((Progress) -> Void)? = nil,
+    completionHandler: CLDUploadCompletionHandler? = nil
+) -> CLDUploadRequest
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Upload parameters.
+</ParamField>
+
+<ParamField path="preprocessChain" type="CLDPreprocessChain<T>" required>
+  Processing steps applied to the file before chunking.
+</ParamField>
+
+<ParamField path="chunkSize" type="Int">
+  Chunk size in bytes. Defaults to 20 MB. Must be at least 5 MB.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)?">
+  Aggregate progress closure.
+</ParamField>
+
+<ParamField path="completionHandler" type="CLDUploadCompletionHandler?">
+  Called on completion or first chunk error.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  A request handle for the entire transfer.
+</ResponseField>
+
+---
+
+## CLDUploadRequest
+
+`CLDUploadRequest` is the handle returned by every upload method. It lets you observe progress, register a completion handler, and control the request lifecycle.
+
+### Methods
+
+#### resume()
+
+```swift
+open func resume()
+```
+
+Resumes a suspended request. No-op if the request is not suspended.
+
+---
+
+#### suspend()
+
+```swift
+open func suspend()
+```
+
+Temporarily pauses the transfer. Call `resume()` to continue. For `uploadLarge`, all in-flight chunk requests are suspended together.
+
+---
+
+#### cancel()
+
+```swift
+open func cancel()
+```
+
+Cancels the request. Cancelled requests cannot be resumed. For `uploadLarge`, all chunk requests are cancelled.
+
+---
+
+#### response(_:)
+
+```swift
+@discardableResult
+open func response(
+    _ completionHandler: @escaping (_ result: CLDUploadResult?, _ error: NSError?) -> ()
+) -> CLDUploadRequest
+```
+
+Registers a completion closure. You can also provide the handler inline when calling the upload method — both approaches are equivalent.
+
+<ParamField path="completionHandler" type="(CLDUploadResult?, NSError?) -> ()" required>
+  Called once the upload finishes. Exactly one of `result` or `error` is non-nil.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  The same `CLDUploadRequest` instance, enabling chaining.
+</ResponseField>
+
+---
+
+#### progress(_:)
+
+```swift
+@discardableResult
+open func progress(
+    _ progress: @escaping ((Progress) -> Void)
+) -> CLDUploadRequest
+```
+
+Registers a progress closure. For `uploadLarge`, progress reflects the aggregate bytes transferred across all chunks.
+
+<ParamField path="progress" type="(Progress) -> Void" required>
+  Called periodically as bytes are transferred.
+</ParamField>
+
+<ResponseField name="return" type="CLDUploadRequest">
+  The same `CLDUploadRequest` instance, enabling chaining.
+</ResponseField>
+
+```swift
+let request = uploader.signedUpload(url: fileUrl)
+request
+    .progress { p in print("\(p.completedUnitCount) / \(p.totalUnitCount)") }
+    .response { result, error in print(result?.publicId ?? "") }
+```
+
+---
+
+## CLDUploadResult
+
+`CLDUploadResult` wraps the JSON response from the Cloudinary upload API. All properties are read-only and optional — fields not returned by the server are `nil`.
+
+### Core fields
+
+<ResponseField name="publicId" type="String?">
+  The identifier assigned to the uploaded resource.
+</ResponseField>
+
+<ResponseField name="version" type="String?">
+  The version number of the resource, returned as a string.
+</ResponseField>
+
+<ResponseField name="resourceType" type="String?">
+  The resource type: `"image"`, `"video"`, or `"raw"`.
+</ResponseField>
+
+<ResponseField name="type" type="String?">
+  The delivery type: `"upload"`, `"private"`, or `"authenticated"`.
+</ResponseField>
+
+<ResponseField name="url" type="String?">
+  The plain HTTP URL for the uploaded resource.
+</ResponseField>
+
+<ResponseField name="secureUrl" type="String?">
+  The HTTPS URL for the uploaded resource. Use this in production.
+</ResponseField>
+
+<ResponseField name="format" type="String?">
+  The file format of the stored resource (e.g., `"jpg"`, `"mp4"`).
+</ResponseField>
+
+<ResponseField name="signature" type="String?">
+  The API response signature, used to verify the response is from Cloudinary.
+</ResponseField>
+
+<ResponseField name="createdAt" type="String?">
+  ISO 8601 timestamp of when the resource was created.
+</ResponseField>
+
+<ResponseField name="length" type="Double?">
+  The size of the resource in bytes.
+</ResponseField>
+
+<ResponseField name="originalFilename" type="String?">
+  The original filename of the uploaded resource, if available.
+</ResponseField>
+
+<ResponseField name="tags" type="[String]?">
+  Tags assigned to the resource.
+</ResponseField>
+
+<ResponseField name="deleteToken" type="String?">
+  A token you can use to delete the resource within 10 minutes without authentication. Only present when `setReturnDeleteToken(true)` is set on the params.
+</ResponseField>
+
+<ResponseField name="done" type="Bool?">
+  For chunked uploads, indicates whether all parts have been received by Cloudinary.
+</ResponseField>
+
+<ResponseField name="assetFolder" type="String?">
+  The asset folder where the resource is stored (DAM folder path).
+</ResponseField>
+
+<ResponseField name="displayName" type="String?">
+  The display name of the resource.
+</ResponseField>
+
+### Image fields
+
+<ResponseField name="width" type="Int?">
+  Image width in pixels.
+</ResponseField>
+
+<ResponseField name="height" type="Int?">
+  Image height in pixels.
+</ResponseField>
+
+<ResponseField name="exif" type="[String: String]?">
+  EXIF metadata key-value pairs. Present when `setExif(true)` is set on the params.
+</ResponseField>
+
+<ResponseField name="metadata" type="[String: String]?">
+  IPTC and extended image metadata. Present when `setImageMetadata(true)` or `setMediaMetadata(true)` is set.
+</ResponseField>
+
+<ResponseField name="faces" type="AnyObject?">
+  Detected face coordinates. Present when `setFaces(true)` is set.
+</ResponseField>
+
+<ResponseField name="colors" type="AnyObject?">
+  Predominant colors and color histogram. Present when `setColors(true)` is set.
+</ResponseField>
+
+<ResponseField name="phash" type="String?">
+  Perceptual hash fingerprint for image similarity comparisons. Present when `setPhash(true)` is set.
+</ResponseField>
+
+<ResponseField name="context" type="[String: [String: String]]?">
+  Contextual metadata key-value pairs attached to the resource.
+</ResponseField>
+
+<ResponseField name="eager" type="[CLDEagerResult]?">
+  Results for any eager transformations requested at upload time.
+  <Expandable title="CLDEagerResult fields">
+    <ResponseField name="url" type="String?">
+      HTTP URL for this eager transformation.
+    </ResponseField>
+    <ResponseField name="secureUrl" type="String?">
+      HTTPS URL for this eager transformation.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="qualityAnalysisResult" type="CLDQualityAnalysis?">
+  Quality analysis data. Present when `setQualityAnalysis(true)` is set.
+</ResponseField>
+
+<ResponseField name="accessibilityAnalysis" type="CLDAccessibilityAnalysisResult?">
+  Accessibility analysis data. Present when `setAccessibilityAnalysis(true)` is set.
+</ResponseField>
+
+<ResponseField name="info" type="CLDInfo?">
+  Detection and analysis results from add-ons (e.g., face detection, OCR).
+</ResponseField>
+
+### Video fields
+
+<ResponseField name="duration" type="Double?">
+  Duration of the video in seconds.
+</ResponseField>
+
+<ResponseField name="frameRte" type="Double?">
+  Frame rate of the video.
+</ResponseField>
+
+<ResponseField name="bitRate" type="Int?">
+  Overall bit rate of the media file in bits per second.
+</ResponseField>
+
+<ResponseField name="playbackUrl" type="String?">
+  Streaming playback URL for adaptive bitrate formats.
+</ResponseField>
+
+<ResponseField name="video" type="CLDVideo?">
+  Video stream metadata.
+  <Expandable title="CLDVideo fields">
+    <ResponseField name="format" type="String?">Pixel format (e.g., `"yuv420p"`).</ResponseField>
+    <ResponseField name="codec" type="String?">Video codec (e.g., `"h264"`).</ResponseField>
+    <ResponseField name="level" type="Int?">Codec level.</ResponseField>
+    <ResponseField name="bitRate" type="Int?">Video stream bit rate in bits per second.</ResponseField>
+    <ResponseField name="metadata" type="[String: String]?">Additional video stream metadata key-value pairs.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="audio" type="CLDAudio?">
+  Audio stream metadata.
+  <Expandable title="CLDAudio fields">
+    <ResponseField name="codec" type="String?">Audio codec (e.g., `"aac"`).</ResponseField>
+    <ResponseField name="bitRate" type="Int?">Audio stream bit rate in bits per second.</ResponseField>
+    <ResponseField name="frequency" type="Int?">Audio sample rate in Hz.</ResponseField>
+    <ResponseField name="channels" type="Int?">Number of audio channels.</ResponseField>
+    <ResponseField name="channelLayout" type="String?">Channel layout (e.g., `"stereo"`).</ResponseField>
+  </Expandable>
+</ResponseField>

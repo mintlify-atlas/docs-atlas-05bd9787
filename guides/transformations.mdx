@@ -1,0 +1,631 @@
+---
+title: 'Transformations'
+description: 'Apply on-the-fly image and video transformations using CLDTransformation.'
+keywords: ['CLDTransformation', 'crop', 'resize', 'effect', 'overlay', 'chain', 'CLDExpression', 'iOS']
+---
+
+`CLDTransformation` describes the complete set of operations Cloudinary applies to an asset when it is delivered. Each setter method returns `Self`, so you can chain calls fluently. Pass the finished object to `CLDUrl.setTransformation(_:)` before calling `generate(_:)`.
+
+```swift
+let transformation = CLDTransformation()
+    .setWidth(400)
+    .setHeight(300)
+    .setCrop(.fill)
+
+let url = cloudinary.createUrl()
+    .setTransformation(transformation)
+    .generate("sample.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/c_fill,h_300,w_400/sample.jpg
+```
+
+## Dimensions
+
+### setWidth
+
+Set the output width in pixels, as a float multiplier, or as an expression string.
+
+```swift
+// Integer pixels
+CLDTransformation().setWidth(800)
+// → w_800
+
+// Float multiplier (e.g. 0.5 = 50% of original width)
+CLDTransformation().setWidth(Float(0.5))
+// → w_0.5
+
+// Expression string
+CLDTransformation().setWidth("iw * 0.5")
+// → w_iw_mul_0.5
+```
+
+### setHeight
+
+Same overloads as `setWidth` — integer, float, or expression string.
+
+```swift
+CLDTransformation().setWidth(600).setHeight(400)
+// → h_400,w_600
+```
+
+### setAspectRatio
+
+Constrain the output to a specific aspect ratio. Use together with a crop mode.
+
+```swift
+// Ratio as fraction
+CLDTransformation().setAspectRatio(nominator: 16, denominator: 9).setCrop(.fill)
+// → ar_16:9,c_fill
+
+// Ratio as float
+CLDTransformation().setAspectRatio(Float(1.5)).setCrop(.fill)
+// → ar_1.5,c_fill
+
+// Ratio as string
+CLDTransformation().setAspectRatio("4:3").setCrop(.pad)
+// → ar_4:3,c_pad
+```
+
+## Crop modes
+
+Use `setCrop(_:)` with a `CLDCrop` value to control how the image is resized.
+
+```swift
+CLDTransformation().setWidth(300).setHeight(200).setCrop(.fill)
+// → c_fill,h_200,w_300
+```
+
+<AccordionGroup>
+  <Accordion title="CLDCrop values">
+    | Case | URL value | Description |
+    |------|-----------|-------------|
+    | `.scale` | `scale` | Resize to exact dimensions, possibly distorting |
+    | `.fit` | `fit` | Resize to fit within given dimensions, maintaining aspect ratio |
+    | `.limit` | `limit` | Resize only if larger than given dimensions |
+    | `.mFit` | `mfit` | Same as `fit` but never upscales |
+    | `.fill` | `fill` | Crop to fill exact dimensions, possibly cutting |
+    | `.lFill` | `lfill` | Fill without upscaling |
+    | `.crop` | `crop` | Crop to exact region |
+    | `.pad` | `pad` | Resize and pad to exact dimensions |
+    | `.lPad` | `lpad` | Pad without upscaling |
+    | `.mPad` | `mpad` | Pad using minimum dimensions |
+    | `.thumb` | `thumb` | Thumbnail crop focused on a face or object |
+    | `.imaggaCrop` | `imagga_crop` | AI-based crop using Imagga addon |
+    | `.imaggaScale` | `imagga_scale` | AI-based scale using Imagga addon |
+  </Accordion>
+</AccordionGroup>
+
+## Gravity
+
+Gravity controls which part of the image is the focal point for crop, pad, and fill operations.
+
+```swift
+// Face detection gravity for a thumbnail
+CLDTransformation()
+    .setWidth(90).setHeight(90)
+    .setCrop(.thumb)
+    .setGravity(.face)
+// → c_thumb,g_face,h_90,w_90
+
+// Composite: auto gravity
+CLDTransformation()
+    .setWidth(500)
+    .setCrop(.fill)
+    .setGravity(.auto)
+// → c_fill,g_auto,w_500
+```
+
+<AccordionGroup>
+  <Accordion title="CLDGravity values">
+    | Case | URL value | Description |
+    |------|-----------|-------------|
+    | `.center` | `center` | Center of the image (default) |
+    | `.auto` | `auto` | Automatic subject detection |
+    | `.face` | `face` | Single face detection |
+    | `.faceCenter` | `face:center` | Face, centered |
+    | `.faces` | `faces` | Multiple face detection |
+    | `.facesCenter` | `faces:center` | Multiple faces, centered |
+    | `.advFace` | `adv_face` | Advanced face detection |
+    | `.advFaces` | `adv_faces` | Advanced multiple face detection |
+    | `.advEyes` | `adv_eyes` | Advanced eye detection |
+    | `.north` | `north` | Top center |
+    | `.northWest` | `north_west` | Top left |
+    | `.northEast` | `north_east` | Top right |
+    | `.south` | `south` | Bottom center |
+    | `.southWest` | `south_west` | Bottom left |
+    | `.southEast` | `south_east` | Bottom right |
+    | `.west` | `west` | Center left |
+    | `.east` | `east` | Center right |
+    | `.xyCenter` | `xy_center` | Center of the X/Y coordinate area |
+    | `.custom` | `custom` | Use custom coordinates set on the asset |
+    | `.customFace` | `custom:face` | Custom + face |
+    | `.customFaces` | `custom:faces` | Custom + multiple faces |
+    | `.customAdvFace` | `custom:adv_face` | Custom + advanced face |
+    | `.customAdvFaces` | `custom:adv_faces` | Custom + advanced faces |
+    | `.autoOcrText` | `auto:ocr_text` | Auto-gravity using OCR text detection |
+    | `.ocrText` | `ocr_text` | OCR text detection |
+    | `.ocrTextAdvOcr` | `ocr_text:adv_ocr` | Advanced OCR text detection |
+  </Accordion>
+</AccordionGroup>
+
+## Quality
+
+Use `CLDQuality` to control compression quality.
+
+```swift
+// Fixed quality level (1–100)
+CLDTransformation().setQuality(.fixed(80))
+// → q_80
+
+// Automatic quality
+CLDTransformation().setQuality(.auto())
+// → q_auto
+
+// Automatic quality with level
+CLDTransformation().setQuality(.auto(.good))
+// → q_auto:good
+
+// JpegMini addon
+CLDTransformation().setQuality(.jpegMini())
+// → q_jpegmini
+```
+
+`CLDQualityAuto` levels: `.best`, `.good`, `.eco`, `.low`.
+
+<Tip>
+  `q_auto` is recommended for production. It dynamically picks the optimal quality for each format, reducing bandwidth without visible quality loss.
+</Tip>
+
+## Format
+
+`setFetchFormat(_:)` forces format conversion on `fetch` type URLs. For uploaded assets, set the format on the URL itself via `CLDUrl.setFormat(_:)`.
+
+```swift
+CLDTransformation().setFetchFormat("webp")
+// → f_webp
+```
+
+## Effects
+
+Apply visual filters and transformations with `setEffect`. Pass a `CLDEffect` value alone or with a numeric parameter string.
+
+```swift
+// Simple effect
+CLDTransformation().setEffect(.grayscale)
+// → e_grayscale
+
+// Effect with parameter (sepia strength 50)
+CLDTransformation().setEffect(.sepia, param: "50")
+// → e_sepia:50
+
+// Blur with strength
+CLDTransformation().setEffect(.blur, param: "300")
+// → e_blur:300
+
+// Artistic filter (uses CLDArtFilters)
+CLDTransformation().setEffect(.audrey)   // CLDArtFilters enum
+// → e_art:audrey
+```
+
+<AccordionGroup>
+  <Accordion title="CLDEffect values">
+    `hue`, `red`, `green`, `blue`, `negate`, `brightness`, `sepia`, `grayscale`, `blackwhite`, `saturation`, `colorize`, `contrast`, `autoContrast`, `vibrance`, `autoColor`, `improve`, `autoBrightness`, `fillLight`, `viesusCorrect`, `gamma`, `screen`, `multiply`, `overlay`, `makeTransparent`, `trim`, `shadow`, `distort`, `shear`, `displace`, `oilPaint`, `redeye`, `advRedeye`, `vignette`, `gradientFade`, `pixelate`, `pixelateRegion`, `pixelateFaces`, `blur`, `blurRegion`, `blurFaces`, `sharpen`, `unsharpMask`, `orderedDither`, `art`, `assistColorblind`, `preview`
+  </Accordion>
+
+  <Accordion title="CLDArtFilters values">
+    `alDente`, `athena`, `audrey`, `aurora`, `daguerre`, `eucalyptus`, `fes`, `frost`, `hairspray`, `hokusai`, `incognito`, `linen`, `peacock`, `primavera`, `quartz`, `redRock`, `refresh`, `sizzle`, `sonnet`, `ukulele`, `zorro`
+  </Accordion>
+</AccordionGroup>
+
+## Overlays and underlays
+
+Place another asset or text on top of (`setOverlay`) or beneath (`setUnderlay`) the base image. Position the layer with `setX`, `setY`, and `setGravity`. Use `CLDLayer` via `setOverlayWithLayer(_:)` for a type-safe API.
+
+```swift
+// Image overlay using a raw identifier string
+CLDTransformation()
+    .setOverlay("watermark_logo")
+    .setGravity(.southEast)
+    .setOpacity(70)
+// → g_south_east,l_watermark_logo,o_70
+
+// Underlay
+CLDTransformation()
+    .setUnderlay("background_texture")
+// → u_background_texture
+```
+
+## Geometry: angle, radius, X and Y
+
+### setAngle
+
+Rotate the image by degrees or flip it. Pass an integer, array of mode strings, or a raw string.
+
+```swift
+CLDTransformation().setAngle(45)
+// → a_45
+
+CLDTransformation().setAngle(["vflip"])
+// → a_vflip
+```
+
+### setRadius
+
+Round corners. Pass an integer for uniform radius or an array for per-corner values.
+
+```swift
+CLDTransformation().setRadius(20)
+// → r_20
+
+// Fully circular/oval
+CLDTransformation().setRadius("max")
+// → r_max
+
+// Per-corner: top-left:top-right:bottom-right:bottom-left
+CLDTransformation().setRadius([20, 0, 20, 0])
+// → r_20:0:20:0
+```
+
+### setX and setY
+
+Horizontal and vertical offsets, used with overlays, crops, and region effects.
+
+```swift
+CLDTransformation()
+    .setOverlay("badge")
+    .setGravity(.northWest)
+    .setX(10)
+    .setY(10)
+// → g_north_west,l_badge,x_10,y_10
+```
+
+## Color and background
+
+### setColor
+
+Set the color for text captions, shadow effects, and the `colorize` effect. Pass a hex triplet or named color — the `#` prefix is automatically converted to `rgb:`.
+
+```swift
+CLDTransformation().setColor("#3e2222")
+// → co_rgb:3e2222
+
+CLDTransformation().setColor("green")
+// → co_green
+```
+
+### setBackground
+
+Set the background color for padding and JPG conversion of transparent areas.
+
+```swift
+CLDTransformation().setBackground("#ffffff").setCrop(.pad)
+// → b_rgb:ffffff,c_pad
+
+CLDTransformation().setBackground("auto:predominant")
+// → b_auto:predominant
+```
+
+## Opacity
+
+Set transparency as a percentage. `100` is fully opaque; `0` is fully transparent.
+
+```swift
+CLDTransformation().setOpacity(50)
+// → o_50
+```
+
+## Zoom
+
+Control how much context to include when using face-detection crop modes.
+
+```swift
+CLDTransformation()
+    .setWidth(100).setHeight(100)
+    .setCrop(.thumb)
+    .setGravity(.face)
+    .setZoom(Float(0.5))
+// → c_thumb,g_face,h_100,w_100,z_0.5
+```
+
+## Border
+
+Add a solid border around the image.
+
+```swift
+CLDTransformation().setBorder(3, color: "#ff0000")
+// → bo_3px_solid_rgb:ff0000
+```
+
+## Named transformations
+
+Apply a pre-configured named transformation stored in your Cloudinary account.
+
+```swift
+CLDTransformation().setNamed("thumbnail_preset")
+// → t_thumbnail_preset
+
+// Multiple named transformations
+CLDTransformation().setNamed(["preset_a", "preset_b"])
+// → t_preset_a.preset_b
+```
+
+## Flags
+
+Set one or more behavior flags.
+
+```swift
+CLDTransformation().setFlags("progressive")
+// → fl_progressive
+
+CLDTransformation().setFlags(["lossy", "strip_profile"])
+// → fl_lossy.strip_profile
+```
+
+## DPR
+
+Deliver the image at the given device pixel ratio. On iOS, use `setDprAuto()` to automatically use the current screen's scale factor (`UIScreen.main.scale`).
+
+```swift
+// Explicit DPR
+CLDTransformation().setDpr(Float(2.0))
+// → dpr_2.0
+
+// Auto DPR — uses UIScreen.main.scale (1.0, 2.0, or 3.0 on real devices)
+CLDTransformation().setDprAuto()
+// → dpr_2.0 (on a Retina device)
+```
+
+## Default image
+
+Specify a fallback public ID if the requested image or social network photo does not exist.
+
+```swift
+CLDTransformation().setDefaultImage("placeholder.jpg")
+// → d_placeholder.jpg
+```
+
+## Raw transformation
+
+Append a raw transformation string directly, exactly as defined in Cloudinary's transformation reference.
+
+```swift
+CLDTransformation().setRawTransformation("e_art:hokusai,q_auto")
+// Appended verbatim at the end of the transformation string
+```
+
+## Chaining transformations
+
+Call `chain()` to separate transformation steps. Each step after a `chain()` becomes its own URL segment, executed sequentially.
+
+```swift
+let transformation = CLDTransformation()
+    .setWidth(100)
+    .setHeight(150)
+    .chain()          // separator → /
+    .setCrop(.fit)
+
+let url = cloudinary.createUrl()
+    .setTransformation(transformation)
+    .generate("sample.jpg")
+// https://res.cloudinary.com/my-cloud/image/upload/h_150,w_100/c_fit/sample.jpg
+```
+
+<Note>
+  Parameters set before and after `chain()` occupy separate URL segments. This is useful when an effect needs to be applied to an already-resized image rather than the original.
+</Note>
+
+### CLDEagerTransformation
+
+`CLDEagerTransformation` is a subclass of `CLDTransformation` that adds a `setFormat(_:)` method for specifying the output format as part of an eager upload request.
+
+```swift
+let eagerTransform = CLDEagerTransformation()
+    .setWidth(300)
+    .setCrop(.fill)
+    .setFormat("webp")
+```
+
+## Conditional transformations
+
+Apply a transformation only when a condition is met using `ifCondition(_:)`, `ifElse()`, and `endIf()`.
+
+### Inline condition string
+
+```swift
+let transformation = CLDTransformation()
+    .ifCondition("w_gt_500")
+    .setWidth(500)
+    .setCrop(.scale)
+    .endIf()
+
+// → if_w_gt_500/c_scale,w_500/if_end
+```
+
+### CLDConditionExpression builder
+
+Use `CLDConditionExpression` for a type-safe way to compose conditions. Call `.then()` to get back the transformation.
+
+```swift
+let transformation = CLDConditionExpression
+    .width()
+    .greater(then: 1000)
+    .then()
+    .setWidth(1000)
+    .setCrop(.scale)
+    .endIf()
+
+// → if_w_gt_1000/c_scale,w_1000/if_end
+```
+
+Available factory methods on `CLDConditionExpression`:
+
+| Method | Expression key |
+|--------|---------------|
+| `.width()` | `w` |
+| `.height()` | `h` |
+| `.aspectRatio()` | `ar` |
+| `.initialWidth()` | `iw` |
+| `.initialHeight()` | `ih` |
+| `.initialAspectRatio()` | `iar` |
+| `.pageCount()` | `pc` |
+| `.faceCount()` | `fc` |
+| `.duration()` | `du` |
+| `.initialDuration()` | `idu` |
+| `.illustrationScore()` | `ils` |
+| `.tags()` | `tags` |
+
+Comparison operators: `.equal(to:)`, `.notEqual(to:)`, `.less(then:)`, `.greater(then:)`, `.lessOrEqual(to:)`, `.greaterOrEqual(to:)`, `.inside(_:)`, `.notInside(_:)`
+
+Logical operators: `.and()`, `.or()`
+
+### if/else
+
+```swift
+let transformation = CLDConditionExpression
+    .width()
+    .greater(then: 800)
+    .then()
+    .setWidth(800)
+    .setCrop(.scale)
+    .ifElse()
+    .setWidth(400)
+    .setCrop(.scale)
+    .endIf()
+
+// → if_w_gt_800/c_scale,w_800/if_else/c_scale,w_400/if_end
+```
+
+## CLDExpression for dynamic values
+
+`CLDExpression` lets you reference image metadata as parameter values (e.g., set width to half the original width).
+
+```swift
+// Set width to 50% of the original width
+CLDTransformation()
+    .setWidth(CLDExpression.initialWidth().multiple(by: Float(0.5)))
+    .setCrop(.scale)
+// → c_scale,w_iw_mul_0.5
+
+// Set height equal to the original height
+CLDTransformation()
+    .setHeight(CLDExpression.initialHeight())
+// → h_ih
+```
+
+Arithmetic operators: `.add(by:)`, `.subtract(by:)`, `.multiple(by:)`, `.divide(by:)`, `.power(by:)`
+
+## Variables
+
+Define reusable variables within a transformation chain:
+
+```swift
+let transformation = CLDTransformation()
+    .setVariable("$w", int: 200)
+    .setWidth("$w")
+    .setCrop(.scale)
+// → $w_200,c_scale,w_$w
+```
+
+## Video-specific parameters
+
+<AccordionGroup>
+  <Accordion title="Audio and video codec">
+    ```swift
+    // Video codec with profile
+    CLDTransformation().setVideoCodecAndProfileAndLevel("h264", videoProfile: "baseline", level: "3.1")
+    // → vc_h264:baseline:3.1
+
+    // Audio codec
+    CLDTransformation().setAudioCodec("aac")
+    // → ac_aac
+
+    // Remove audio
+    CLDTransformation().setAudioCodec("none")
+    // → ac_none
+
+    // Audio frequency
+    CLDTransformation().setAudioFrequency(44100)
+    // → af_44100
+    ```
+  </Accordion>
+
+  <Accordion title="Bit rate and FPS">
+    ```swift
+    // Bit rate in kilobits
+    CLDTransformation().setBitRate(kb: 500)
+    // → br_500k
+
+    // Bit rate as megabits string
+    CLDTransformation().setBitRate("2m")
+    // → br_2m
+
+    // Frames per second
+    CLDTransformation().setFps(Float(30))
+    // → fps_30
+
+    // FPS range
+    CLDTransformation().setFps(CLDTransformation.CLDFps.range(start: Float(24), end: Float(60)))
+    // → fps_24-60
+    ```
+  </Accordion>
+
+  <Accordion title="Trimming and duration">
+    ```swift
+    // Trim first 5 seconds
+    CLDTransformation().setStartOffset(seconds: 5.0)
+    // → so_5.0
+
+    // Trim last 10% of the video
+    CLDTransformation().setEndOffset(percent: 90)
+    // → eo_90p
+
+    // Set duration to 15 seconds
+    CLDTransformation().setDuration(seconds: 15.0)
+    // → du_15.0
+
+    // Convenience shortcut
+    CLDTransformation().setStartOffsetAndEndOffset(startSeconds: 2.0, endSeconds: 12.0)
+    // → so_2.0,eo_12.0
+    ```
+  </Accordion>
+
+  <Accordion title="Video sampling">
+    ```swift
+    // Sample 20 frames spread over the video
+    CLDTransformation().setVideoSampling(frames: 20)
+    // → vs_20
+
+    // Sample one frame every 2 seconds
+    CLDTransformation().setVideoSampling(delay: Float(2.0))
+    // → vs_2.0s
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Complete example
+
+```swift
+import Cloudinary
+
+let config = CLDConfiguration(cloudName: "my-cloud", secure: true)
+let cloudinary = CLDCloudinary(configuration: config)
+
+// Multi-step transformation: resize, then add a watermark overlay
+let transformation = CLDTransformation()
+    .setWidth(800)
+    .setHeight(600)
+    .setCrop(.fill)
+    .setGravity(.auto)
+    .setQuality(.auto(.good))
+    .chain()
+    .setOverlay("watermark_v2")
+    .setGravity(.southEast)
+    .setX(10)
+    .setY(10)
+    .setOpacity(60)
+
+let url = cloudinary.createUrl()
+    .setTransformation(transformation)
+    .setFormat("webp")
+    .generate("product/hero-image")
+// https://res.cloudinary.com/my-cloud/image/upload/c_fill,g_auto,h_600,q_auto:good,w_800/g_south_east,l_watermark_v2,o_60,x_10,y_10/v1/product/hero-image.webp
+```

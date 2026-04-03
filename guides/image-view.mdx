@@ -1,0 +1,247 @@
+---
+title: "Display images with CLDUIImageView"
+description: "CLDUIImageView is a UIImageView subclass that loads Cloudinary images asynchronously by public ID, with optional transformations, placeholder support, and responsive sizing."
+keywords: ["CLDUIImageView", "cldSetImage", "UIImageView", "placeholder", "async", "cache", "responsive"]
+---
+
+`CLDUIImageView` extends `UIImageView` with a `cldSetImage` method that accepts a Cloudinary public ID, generates the delivery URL, downloads the image asynchronously, and caches the result. You can apply transformations, show a placeholder while loading, and optionally enable responsive sizing based on the view's bounds.
+
+<Note>
+  All calls to `cldSetImage` must be made from the main thread.
+</Note>
+
+## Setting an image by public ID
+
+```swift
+import UIKit
+import Cloudinary
+
+let imageView = CLDUIImageView()
+
+imageView.cldSetImage(
+    publicId: "sample",
+    cloudinary: cloudinary,
+    responsiveParams: CLDResponsiveParams.fit()
+)
+```
+
+`CLDUIImageView.cldSetImage` requires `responsiveParams` to be provided. If you do not need responsive behavior, use the `UIImageView` extension method instead — see [Using the UIImageView extension](#using-the-uiimageview-extension) below.
+
+## Method parameters
+
+<ParamField path="publicId" type="String" required>
+  The public ID of the Cloudinary asset, for example `"folder/my-photo"`. Do not include the file extension.
+</ParamField>
+
+<ParamField path="cloudinary" type="CLDCloudinary" required>
+  The configured `CLDCloudinary` instance used to generate the delivery URL and perform the download.
+</ParamField>
+
+<ParamField path="signUrl" type="Bool" default="false">
+  When `true`, an HMAC-SHA1 signature is appended to the generated URL using the API secret from your `CLDConfiguration`. Use this when your Cloudinary environment requires signed delivery.
+</ParamField>
+
+<ParamField path="resourceType" type="CLDUrlResourceType" default="CLDUrlResourceType.image">
+  The resource type of the asset. Pass `.video` to fetch a video frame thumbnail from a video public ID.
+</ParamField>
+
+<ParamField path="responsiveParams" type="CLDResponsiveParams" required>
+  Controls how the SDK adapts the requested image size to the view's bounds. See [Responsive images](/guides/responsive-images) for full configuration options.
+</ParamField>
+
+<ParamField path="transformation" type="CLDTransformation?">
+  An optional `CLDTransformation` to chain before the responsive size transformation. Use this for effects, quality settings, or format conversion.
+</ParamField>
+
+<ParamField path="placeholder" type="UIImage?">
+  A `UIImage` displayed immediately while the async download is in progress. Once the download completes, the placeholder is replaced with the fetched image.
+</ParamField>
+
+## Async loading and caching
+
+When you call `cldSetImage`, the SDK:
+
+1. Generates a Cloudinary delivery URL from the public ID and parameters.
+2. Checks the `URLCache` for a cached response. If found, the image is applied immediately.
+3. If not cached, downloads the image in the background.
+4. On completion, sets `self.image` on the main thread and caches the response.
+
+The cache uses the same memory (30 MB default) and disk (150 MB default) limits as `CLDDownloader`. You can adjust these limits on your `CLDCloudinary` instance — see [Download & fetch images](/guides/download#configuring-cache-limits).
+
+## Using a placeholder
+
+Pass any `UIImage` as the `placeholder` parameter. The image view displays it immediately and replaces it once the real image loads.
+
+```swift
+imageView.cldSetImage(
+    publicId: "hero-banner",
+    cloudinary: cloudinary,
+    responsiveParams: CLDResponsiveParams.fit(),
+    placeholder: UIImage(named: "placeholder-gray")
+)
+```
+
+<Tip>
+  Use a low-resolution locally bundled image as a placeholder to give users immediate visual feedback while the full-resolution image loads over the network.
+</Tip>
+
+## Applying a transformation
+
+Chain a `CLDTransformation` to apply server-side effects before responsive sizing.
+
+```swift
+let transformation = CLDTransformation()
+    .setEffect(.sepia)
+    .setQuality("auto")
+    .setFetchFormat("auto")
+
+imageView.cldSetImage(
+    publicId: "portrait",
+    cloudinary: cloudinary,
+    responsiveParams: CLDResponsiveParams.autoFill(),
+    transformation: transformation
+)
+```
+
+## How layout triggers the download
+
+`CLDUIImageView` overrides `layoutSubviews()`. When the view's bounds become non-zero (i.e., the view has been laid out by Auto Layout or a frame assignment), `layoutSubviews` notifies the internal `CLDResponsiveViewHelper` that the view size is known. The helper then calculates the appropriate image dimensions and starts the download.
+
+This means it is safe to call `cldSetImage` before the view has been laid out. The download starts automatically once the view's size is determined.
+
+```swift
+// Safe to call in viewDidLoad even before layout
+imageView.cldSetImage(
+    publicId: "sample",
+    cloudinary: cloudinary,
+    responsiveParams: CLDResponsiveParams.fit()
+)
+```
+
+## Using the UIImageView extension
+
+If you are using a plain `UIImageView` and do not need responsive sizing, use the `cldSetImage` extension methods provided on all `UIImageView` instances.
+
+<CodeGroup>
+
+```swift By public ID
+imageView.cldSetImage(
+    publicId: "sample",
+    cloudinary: cloudinary,
+    transformation: CLDTransformation().setWidth(300).setHeight(200).setCrop(.fill),
+    placeholder: UIImage(named: "loading")
+)
+```
+
+```swift By URL string
+imageView.cldSetImage(
+    "https://res.cloudinary.com/my-cloud/image/upload/sample.jpg",
+    cloudinary: cloudinary,
+    placeholder: UIImage(named: "loading")
+)
+```
+
+</CodeGroup>
+
+These methods also use the `URLCache` and accept the same `placeholder` parameter. They do not require a `CLDResponsiveParams` argument.
+
+## Loading images in UIButton
+
+The SDK also extends `UIButton` with `cldSetImage` methods for loading images into button states.
+
+```swift
+// By public ID — set for normal state
+button.cldSetImage(
+    publicId: "icons/play",
+    cloudinary: cloudinary,
+    forState: .normal,
+    transformation: CLDTransformation().setWidth(44).setHeight(44).setCrop(.fill)
+)
+
+// By URL string
+button.cldSetImage(
+    "https://res.cloudinary.com/my-cloud/image/upload/icons/play.png",
+    forState: .normal,
+    cloudinary: cloudinary
+)
+
+// Background image by public ID
+button.cld_setBackgroundImage(
+    publicId: "buttons/bg",
+    cloudinary: cloudinary,
+    forState: .normal
+)
+```
+
+<ParamField path="forState" type="UIControl.State" required>
+  The button state the image is displayed in — `.normal`, `.highlighted`, `.disabled`, `.selected`, etc.
+</ParamField>
+
+---
+
+## Complete example in a UIViewController
+
+```swift
+import UIKit
+import Cloudinary
+
+class ProfileViewController: UIViewController {
+
+    private let heroImageView = CLDUIImageView()
+    private let avatarImageView = UIImageView()
+
+    private let cloudinary = CLDCloudinary(
+        configuration: CLDConfiguration(cloudName: "my-cloud", apiKey: "my-key")
+    )
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupLayout()
+        loadImages()
+    }
+
+    private func setupLayout() {
+        heroImageView.translatesAutoresizingMaskIntoConstraints = false
+        heroImageView.contentMode = .scaleAspectFill
+        heroImageView.clipsToBounds = true
+        view.addSubview(heroImageView)
+
+        avatarImageView.translatesAutoresizingMaskIntoConstraints = false
+        avatarImageView.contentMode = .scaleAspectFill
+        avatarImageView.layer.cornerRadius = 32
+        avatarImageView.clipsToBounds = true
+        view.addSubview(avatarImageView)
+
+        NSLayoutConstraint.activate([
+            heroImageView.topAnchor.constraint(equalTo: view.topAnchor),
+            heroImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            heroImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            heroImageView.heightAnchor.constraint(equalToConstant: 240),
+
+            avatarImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            avatarImageView.topAnchor.constraint(equalTo: heroImageView.bottomAnchor, constant: 16),
+            avatarImageView.widthAnchor.constraint(equalToConstant: 64),
+            avatarImageView.heightAnchor.constraint(equalToConstant: 64)
+        ])
+    }
+
+    private func loadImages() {
+        // Responsive hero — fills the view at its actual rendered size
+        heroImageView.cldSetImage(
+            publicId: "backgrounds/hero",
+            cloudinary: cloudinary,
+            responsiveParams: CLDResponsiveParams.autoFill(),
+            placeholder: UIImage(named: "hero-placeholder")
+        )
+
+        // Fixed-size avatar via UIImageView extension
+        avatarImageView.cldSetImage(
+            publicId: "users/avatar-001",
+            cloudinary: cloudinary,
+            transformation: CLDTransformation()
+                .setWidth(128).setHeight(128).setCrop(.fill).setGravity(.face),
+            placeholder: UIImage(named: "avatar-placeholder")
+        )
+    }
+}
+```

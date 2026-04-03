@@ -1,23 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Cloudinary iOS SDK",
+  "projectType": "sdk-library",
+  "projectName": "Cloudinary iOS SDK",
+  "projectDescription": "A Swift/Objective-C SDK for integrating Cloudinary media management — upload, transform, optimize, and deliver images and videos — into iOS applications.",
   "theme": "luma",
-  "colors": {
-    "primary": "#3448C5",
-    "light": "#EEF1FF",
-    "dark": "#1A237E"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/cloudinary/cloudinary_ios"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/cloudinary/cloudinary_ios"
-    }
-  },
+  "primaryColor": "#3448C5",
+  "lightColor": "#EEF1FF",
+  "darkColor": "#1A237E",
   "navigation": {
     "tabs": [
       {
@@ -106,5 +94,42 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Upload images and videos (signed and unsigned) with progress tracking and cancellation",
+    "Generate optimized Cloudinary CDN URLs with chained transformations",
+    "Image and video transformations: crop, resize, gravity, effects, overlays, and more",
+    "CLDUIImageView for asynchronous image loading with responsive/adaptive sizing",
+    "CLDVideoPlayer (AVPlayer subclass) with analytics and streaming profile support",
+    "Upload Widget with built-in crop and preprocessing UI",
+    "Image and video preprocessing pipeline (resize, format, quality, custom steps)",
+    "Management API for renaming, deleting, tagging, and explicitly managing assets",
+    "Supports CocoaPods, Carthage, Swift Package Manager, and manual integration",
+    "Native URLCache support with configurable disk and memory limits"
+  ],
+  "publicApiSurface": [
+    "CLDCloudinary",
+    "CLDConfiguration",
+    "CLDUrl",
+    "CLDTransformation",
+    "CLDEagerTransformation",
+    "CLDUploader",
+    "CLDDownloader",
+    "CLDManagementApi",
+    "CLDUIImageView",
+    "CLDVideoPlayer",
+    "CLDUploaderWidget",
+    "CLDUploadRequestParams",
+    "CLDResponsiveParams",
+    "CLDPreprocessChain",
+    "CLDImagePreprocessChain",
+    "CLDVideoPreprocessChain",
+    "CLDExpression",
+    "CLDConditionExpression",
+    "CLDVariable",
+    "CLDLayer",
+    "CLDTextLayer",
+    "CLDSubtitlesLayer",
+    "CLDFetchLayer"
+  ]
 }

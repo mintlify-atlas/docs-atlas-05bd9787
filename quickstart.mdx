@@ -1,80 +1,249 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Upload an image to Cloudinary, apply a transformation, and display it in a UIImageView — all in under 10 minutes."
 ---
 
-## Get started in three steps
+This guide walks you through the minimum steps to get a working media pipeline in your iOS app: configure the SDK, upload a file, generate a transformed delivery URL, and display the result.
 
-Get your documentation site running locally and make your first customization.
+<Note>
+  You'll need a free Cloudinary account. Your **cloud name** and **API key** are in your [Cloudinary Console](https://cloudinary.com/console) under **Account Details**.
+</Note>
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Install the SDK">
+    Add the Cloudinary iOS SDK to your project. The fastest path is CocoaPods — add the pod to your `Podfile` and run `pod install`:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```ruby Podfile
+    source 'https://github.com/CocoaPods/Specs.git'
+    platform :ios, '9.0'
+    use_frameworks!
 
-### Step 2: Deploy your changes
+    target 'MyApp' do
+      pod 'Cloudinary', '~> 5.0'
+    end
+    ```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash
+    pod install
+    ```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    For Carthage, Swift Package Manager, or manual setup, see [Installation](/installation).
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Configure your credentials">
+    Create a `CLDConfiguration` with your cloud name and API key, then initialize `CLDCloudinary`. The `CLDCloudinary` instance is the entry point for all SDK operations — keep a reference to it (for example, as a property on your app delegate or a shared service).
 
-### Step 3: Go live
+    ```swift
+    import Cloudinary
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    let config = CLDConfiguration(cloudName: "YOUR_CLOUD_NAME", apiKey: "YOUR_API_KEY")
+    let cloudinary = CLDCloudinary(configuration: config)
+    ```
+
+    If you'd rather not hard-code credentials, you can pass them as a Cloudinary URL instead:
+
+    ```swift
+    // Using a cloudinary:// URL
+    let config = CLDConfiguration(cloudinaryUrl: "cloudinary://YOUR_API_KEY:YOUR_API_SECRET@YOUR_CLOUD_NAME")
+    let cloudinary = CLDCloudinary(configuration: config)
+    ```
+
+    Or read from the `CLOUDINARY_URL` environment variable at launch:
+
+    ```swift
+    // Reads the CLOUDINARY_URL environment variable
+    if let config = CLDConfiguration.initWithEnvParams() {
+        let cloudinary = CLDCloudinary(configuration: config)
+    }
+    ```
+
+    <Warning>
+      Never ship your **API secret** inside a production app binary. Use unsigned uploads with upload presets for client-side flows, and keep signing logic on a backend. See [Unsigned upload](/guides/unsigned-upload).
+    </Warning>
+  </Step>
+
+  <Step title="Upload a file">
+    Use `CLDUploader` to upload a local file. Call `createUploader()` on your `CLDCloudinary` instance and pass a `URL` pointing to the file. The SDK assigns a random public ID and returns the result in the completion handler.
+
+    ```swift
+    guard let fileUrl = Bundle.main.url(forResource: "sample", withExtension: "jpg") else { return }
+
+    cloudinary.createUploader().upload(
+        file: fileUrl,
+        params: nil,
+        progress: { bytesUploaded, totalBytes, totalBytesExpected in
+            // Update a progress indicator
+            let progress = Double(bytesUploaded) / Double(totalBytesExpected)
+            print("Upload progress: \(progress)")
+        },
+        completionHandler: { response, error in
+            if let error = error {
+                print("Upload failed: \(error.localizedDescription)")
+                return
+            }
+            if let publicId = response?.publicId {
+                print("Uploaded successfully. Public ID: \(publicId)")
+            }
+        }
+    )
+    ```
+
+    The `upload` method returns a `CLDUploadRequest`, which you can call `.cancel()`, `.suspend()`, or `.resume()` on at any time.
+
+    <Tip>
+      To set a custom public ID or apply an incoming transformation before saving, pass a `CLDUploadRequestParams` instance. See [Upload basics](/guides/upload-basics) for the full parameter reference.
+    </Tip>
+  </Step>
+
+  <Step title="Generate a transformed URL">
+    Use `CLDUrl` to build a Cloudinary delivery URL. Chain `setTransformation()` before calling `generate()` to encode transformation parameters directly into the URL — no separate API call is needed.
+
+    ```swift
+    // Plain URL for an uploaded image
+    let plainUrl = cloudinary.createUrl().generate("sample.jpg")
+    // https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/sample.jpg
+
+    // 100×150 crop
+    let transformation = CLDTransformation()
+        .setWidth(100)
+        .setHeight(150)
+        .setCrop(.crop)
+
+    let croppedUrl = cloudinary.createUrl()
+        .setTransformation(transformation)
+        .generate("sample.jpg")
+    // https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/c_crop,h_150,w_100/sample.jpg
+
+    // 90×90 face-detection thumbnail
+    let thumbTransformation = CLDTransformation()
+        .setWidth(90)
+        .setHeight(90)
+        .setCrop(.Thumb)
+        .setGravity(.Face)
+
+    let thumbUrl = cloudinary.createUrl()
+        .setTransformation(thumbTransformation)
+        .generate("sample.jpg")
+    // https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/c_thumb,g_face,h_90,w_90/sample.jpg
+    ```
+
+    `generate()` returns an optional `String?`. The URL is `nil` only if a required configuration value is missing or the transformation is invalid.
+  </Step>
+
+  <Step title="Display the image">
+    Pass the generated URL string to `CLDDownloader` to fetch and display the image. The downloader checks the in-memory cache first (default 30 MB), then the disk cache (default 150 MB), and only downloads from the network when needed.
+
+    ```swift
+    guard let imageUrl = cloudinary.createUrl()
+        .setTransformation(CLDTransformation().setWidth(300).setHeight(300).setCrop(.fill))
+        .generate("sample.jpg") else { return }
+
+    cloudinary.createDownloader().fetchImage(
+        imageUrl,
+        { bytesDownloaded, totalBytes, totalBytesExpected in
+            // Handle download progress
+        },
+        completionHandler: { responseImage, error in
+            DispatchQueue.main.async {
+                if let image = responseImage {
+                    self.imageView.image = image
+                }
+            }
+        }
+    )
+    ```
+
+    If you're working with `UIImageView`, the SDK's built-in extension makes this even shorter:
+
+    ```swift
+    // Set image directly on a UIImageView using its public ID
+    imageView.cldSetImage(
+        publicId: "sample",
+        cloudinary: cloudinary,
+        transformation: CLDTransformation().setWidth(300).setHeight(300).setCrop(.fill)
+    )
+    ```
+  </Step>
+</Steps>
+
+## Complete example
+
+The snippet below brings all five steps together in a single `UIViewController`.
+
+```swift
+import UIKit
+import Cloudinary
+
+class MediaViewController: UIViewController {
+
+    @IBOutlet weak var imageView: UIImageView!
+
+    // Keep a strong reference to the CLDCloudinary instance
+    let cloudinary: CLDCloudinary = {
+        let config = CLDConfiguration(cloudName: "YOUR_CLOUD_NAME", apiKey: "YOUR_API_KEY")
+        return CLDCloudinary(configuration: config)
+    }()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        uploadAndDisplay()
+    }
+
+    func uploadAndDisplay() {
+        guard let fileUrl = Bundle.main.url(forResource: "sample", withExtension: "jpg") else {
+            return
+        }
+
+        // 1. Upload the file
+        cloudinary.createUploader().upload(
+            file: fileUrl,
+            params: nil,
+            completionHandler: { [weak self] response, error in
+                guard let self = self, let publicId = response?.publicId, error == nil else {
+                    print("Upload error: \(error?.localizedDescription ?? "unknown")")
+                    return
+                }
+
+                // 2. Build a 300×300 fill-crop delivery URL
+                let transformation = CLDTransformation()
+                    .setWidth(300)
+                    .setHeight(300)
+                    .setCrop(.fill)
+
+                guard let imageUrl = self.cloudinary.createUrl()
+                    .setTransformation(transformation)
+                    .generate(publicId) else { return }
+
+                // 3. Fetch and display the image
+                self.cloudinary.createDownloader().fetchImage(
+                    imageUrl,
+                    completionHandler: { responseImage, fetchError in
+                        DispatchQueue.main.async {
+                            if let image = responseImage {
+                                self.imageView.image = image
+                            }
+                        }
+                    }
+                )
+            }
+        )
+    }
+}
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Transformations" icon="wand-magic-sparkles" href="/guides/transformations">
+    Learn how to chain, combine, and apply advanced transformations including overlays, effects, and auto-format optimization.
+  </Card>
+  <Card title="Unsigned upload" icon="lock-open" href="/guides/unsigned-upload">
+    Use upload presets to allow client-side uploads without exposing your API secret.
+  </Card>
+  <Card title="Chunked upload" icon="file-arrow-up" href="/guides/chunked-upload">
+    Upload large video files reliably using the `uploadLarge` API with configurable chunk sizes.
+  </Card>
+  <Card title="Image view" icon="image" href="/guides/image-view">
+    Explore the `CLDUIImageView` extensions and responsive image loading utilities.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

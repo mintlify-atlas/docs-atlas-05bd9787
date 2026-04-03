@@ -1,0 +1,198 @@
+---
+title: 'Caching'
+description: 'Configure URLCache integration, adjust disk and memory limits, and control cache invalidation for downloaded images.'
+keywords: ['cache', 'URLCache', 'cacheMaxDiskCapacity', 'cacheMaxMemoryTotalCost', 'enableUrlCache', 'CLDDownloader', 'CLDUIImageView']
+---
+
+The Cloudinary iOS SDK uses the native `URLCache` system provided by Foundation. Every image fetched through `CLDDownloader`, `UIImageView.cldSetImage`, or `CLDUIImageView.cldSetImage` is stored in this shared cache and served from it on subsequent requests — no additional setup required.
+
+## How the cache works
+
+When `CLDDownloader` requests an image URL, the underlying `URLSession` checks `CLDDownloadCoordinator.urlCache` first. If a valid cached response exists, the image is returned from disk or memory without a network round trip. If no cached response exists, the image is downloaded and stored in both the memory and disk tiers of the cache.
+
+The same cache is used by:
+
+- `CLDDownloader.fetchImage(_:completionHandler:)` — direct URL fetches.
+- `CLDDownloader.fetchAsset(_:completionHandler:)` — raw `Data` fetches.
+- `UIImageView.cldSetImage(_:cloudinary:placeholder:)` — UIKit image view extension.
+- `UIImageView.cldSetImage(publicId:cloudinary:…)` — public ID-based image view extension.
+- `CLDUIImageView.cldSetImage(publicId:cloudinary:…)` — responsive image view subclass.
+
+---
+
+## Enabling and disabling the cache
+
+The `enableUrlCache` property on `CLDCloudinary` controls whether the download session uses `CLDDownloadCoordinator.urlCache`.
+
+```swift
+open var enableUrlCache: Bool { get set }
+```
+
+It is backed by the static `CLDDownloadCoordinator.enableCache` flag, so setting it on any `CLDCloudinary` instance affects all download coordinators that share the default adapter.
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    let cloudinary = CLDCloudinary(configuration: config)
+
+    // Enable the cache (default)
+    cloudinary.enableUrlCache = true
+
+    // Disable the cache — all fetches go directly to the network
+    cloudinary.enableUrlCache = false
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    cloudinary.enableUrlCache = YES;
+    cloudinary.enableUrlCache = NO;
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The cache is enabled by default. Disable it only if you need fresh data on every request, for example in a slideshow that always shows live content.
+</Note>
+
+---
+
+## Configuring cache sizes
+
+Two properties on `CLDCloudinary` let you tune the cache to match your app's memory and storage budget.
+
+### Disk capacity
+
+```swift
+open var cacheMaxDiskCapacity: Int { get set }
+```
+
+Sets the maximum number of bytes `URLCache` may store on disk. The default is **150 MB** (150 × 1024 × 1024 bytes), defined by `Defines.defaultMaxDiskCapacity` in `CLDNetworkCoordinator.swift`.
+
+### Memory capacity
+
+```swift
+open var cacheMaxMemoryTotalCost: Int { get set }
+```
+
+Sets the maximum number of bytes `URLCache` may store in memory. The default is **30 MB** (30 × 1024 × 1024 bytes), defined by `Defines.defaultMaxMemoryCapacity`.
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    let cloudinary = CLDCloudinary(configuration: config)
+
+    // Use 50 MB of memory and 500 MB of disk
+    cloudinary.cacheMaxMemoryTotalCost = 50 * 1024 * 1024
+    cloudinary.cacheMaxDiskCapacity    = 500 * 1024 * 1024
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    cloudinary.cacheMaxMemoryTotalCost = 50 * 1024 * 1024;
+    cloudinary.cacheMaxDiskCapacity    = 500 * 1024 * 1024;
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+Set these properties before making any download requests. Changes apply immediately to the shared `URLCache` instance used by the SDK.
+</Tip>
+
+The properties delegate directly to the underlying `URLCache`:
+
+```swift
+// Reading — reflects the current URLCache configuration
+cloudinary.cacheMaxDiskCapacity    // CLDDownloadCoordinator.urlCache.diskCapacity
+cloudinary.cacheMaxMemoryTotalCost // CLDDownloadCoordinator.urlCache.memoryCapacity
+```
+
+---
+
+## Removing specific URLs from the cache
+
+The SDK does not expose a dedicated `removeFromCache` method. Use the underlying `URLCache` directly to remove a cached response for a specific URL.
+
+```swift
+let cache = CLDDownloadCoordinator.urlCache
+
+if let url = URL(string: "https://res.cloudinary.com/my-cloud/image/upload/sample.jpg") {
+    let request = URLRequest(url: url)
+    cache.removeCachedResponse(for: request)
+}
+```
+
+To clear the entire cache:
+
+```swift
+CLDDownloadCoordinator.urlCache.removeAllCachedResponses()
+```
+
+<Warning>
+`removeAllCachedResponses()` removes every entry from both the memory and disk tiers. Use it carefully in production — the next request for every previously-cached image will hit the network.
+</Warning>
+
+---
+
+## Cache invalidation after asset updates
+
+The cache stores responses keyed on the full URL. If you rename an asset or apply a new transformation, the resulting URL changes and the old cached response becomes stale but does not affect the new URL.
+
+If you overwrite an asset in place (same public ID, same transformation) and need to invalidate CDN and local caches, you should:
+
+1. Pass `invalidate: true` to `CLDManagementApi.rename` or `CLDDestroyRequestParams.setInvalidate(true)` to purge the CDN edge cache.
+2. Remove the cached response locally using `URLCache.removeCachedResponse(for:)` as shown above.
+
+---
+
+## URLSessionConfiguration customization
+
+If you need full control over session behavior — for example, to set a custom `requestCachePolicy` or to integrate with your own session delegate — pass a `URLSessionConfiguration` when initializing `CLDCloudinary`.
+
+```swift
+let downloadConfig = URLSessionConfiguration.default
+downloadConfig.requestCachePolicy = .returnCacheDataElseLoad
+downloadConfig.urlCache = URLCache(
+    memoryCapacity: 50 * 1024 * 1024,
+    diskCapacity:   200 * 1024 * 1024,
+    diskPath: "com.myapp.cloudinary"
+)
+
+let cloudinary = CLDCloudinary(
+    configuration: config,
+    downloadSessionConfiguration: downloadConfig
+)
+```
+
+<Note>
+When you supply a `downloadSessionConfiguration`, the SDK creates a new `CLDDownloadCoordinator` backed by a `CLDDefaultNetworkAdapter` initialized with your configuration. The `enableUrlCache`, `cacheMaxDiskCapacity`, and `cacheMaxMemoryTotalCost` properties on `CLDCloudinary` still work, but they modify `CLDDownloadCoordinator.urlCache` — not the custom `URLCache` you set on the configuration. If you set a custom `urlCache` on your `URLSessionConfiguration`, manage its capacity through `URLCache` directly.
+</Note>
+
+---
+
+## Background and foreground transitions
+
+The SDK uses `URLSessionConfiguration.default` for its download session, which means active downloads are suspended when your app enters the background and automatically resume when the app returns to the foreground. Cached responses remain available across transitions.
+
+If you need to support background URL sessions (for example, to continue a large asset download while the app is not running), supply a `URLSessionConfiguration.background(withIdentifier:)` session configuration and register a background completion handler:
+
+```swift
+let bgConfig = URLSessionConfiguration.background(
+    withIdentifier: "com.myapp.cloudinary.background"
+)
+
+let cloudinary = CLDCloudinary(
+    configuration: config,
+    downloadSessionConfiguration: bgConfig
+)
+
+// In your UIApplicationDelegate:
+func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+) {
+    cloudinary.setBackgroundCompletionHandler(completionHandler)
+}
+```
+
+`setBackgroundCompletionHandler(_:)` stores the handler and calls it automatically once all pending background session events have been processed.

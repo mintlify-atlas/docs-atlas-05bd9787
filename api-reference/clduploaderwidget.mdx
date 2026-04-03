@@ -1,0 +1,387 @@
+---
+title: 'CLDUploaderWidget'
+description: 'A full-screen media picker and editor that lets users select, crop, rotate, and upload images and videos to Cloudinary.'
+---
+
+`CLDUploaderWidget` presents a full-screen UI for picking, editing, and uploading media to Cloudinary. When the user taps upload, the widget calls back to your delegate with the resulting `CLDUploadRequest` objects — one per asset — so you can track progress or respond to completion.
+
+The widget supports two workflows:
+
+- **Asset selection from the library** — when no images or videos are pre-loaded, the widget opens `UIImagePickerController` so the user can select from the photo library.
+- **Pre-loaded assets** — pass images (`[UIImage]`) or videos (`[AVPlayerItem]`) at initialization and the widget goes directly to the preview/edit screen.
+
+```swift
+import Cloudinary
+
+let config = CLDConfiguration(cloudName: "my-cloud", apiKey: "key", apiSecret: "secret", secure: true)
+let cloudinary = CLDCloudinary(configuration: config)
+
+let widget = CLDUploaderWidget(
+    cloudinary: cloudinary,
+    configuration: CLDWidgetConfiguration(),
+    images: nil,
+    delegate: self
+)
+widget.presentWidget(from: self)
+```
+
+---
+
+## Initializers
+
+### init(cloudinary:configuration:images:delegate:)
+
+```swift
+public convenience init(
+    cloudinary: CLDCloudinary,
+    configuration: CLDWidgetConfiguration?,
+    images: [UIImage]?,
+    delegate: CLDUploaderWidgetDelegate?
+)
+```
+
+Creates a widget pre-loaded with images. When `images` is `nil` or empty, the widget opens the system photo library picker on `presentWidget(from:)`.
+
+<ParamField path="cloudinary" type="CLDCloudinary" required>
+  The configured `CLDCloudinary` instance used to perform uploads.
+</ParamField>
+
+<ParamField path="configuration" type="CLDWidgetConfiguration?">
+  Widget behavior options. Pass `nil` to use defaults (rotation allowed, aspect ratio lock off, signed upload).
+</ParamField>
+
+<ParamField path="images" type="[UIImage]?">
+  Images to display in the widget's preview screen. Pass `nil` or an empty array to open the system photo library picker instead.
+</ParamField>
+
+<ParamField path="delegate" type="CLDUploaderWidgetDelegate?">
+  The object that receives upload callbacks and cancellation events.
+</ParamField>
+
+---
+
+### init(cloudinary:configuration:images:videos:delegate:)
+
+```swift
+public init(
+    cloudinary: CLDCloudinary,
+    configuration: CLDWidgetConfiguration?,
+    images: [UIImage]?,
+    videos: [AVPlayerItem]?,
+    delegate: CLDUploaderWidgetDelegate?
+)
+```
+
+Creates a widget pre-loaded with both images and videos.
+
+<ParamField path="cloudinary" type="CLDCloudinary" required>
+  The configured `CLDCloudinary` instance used to perform uploads.
+</ParamField>
+
+<ParamField path="configuration" type="CLDWidgetConfiguration?">
+  Widget behavior options. Pass `nil` to use defaults.
+</ParamField>
+
+<ParamField path="images" type="[UIImage]?">
+  Images to include in the pre-loaded asset list.
+</ParamField>
+
+<ParamField path="videos" type="[AVPlayerItem]?">
+  Videos to include in the pre-loaded asset list.
+</ParamField>
+
+<ParamField path="delegate" type="CLDUploaderWidgetDelegate?">
+  The object that receives upload callbacks and cancellation events.
+</ParamField>
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `rootViewController` | `UIViewController` | The view controller from which the widget was presented. Read-only after `presentWidget(from:)`. |
+| `cloudinaryObject` | `CLDCloudinary` | The `CLDCloudinary` instance used for uploads. |
+| `configuration` | `CLDWidgetConfiguration?` | The active widget configuration. |
+| `images` | `[UIImage]` | The images currently loaded in the widget. |
+| `videos` | `[AVPlayerItem]` | The videos currently loaded in the widget. |
+| `delegate` | `CLDUploaderWidgetDelegate?` | The delegate that receives callbacks. |
+
+---
+
+## Methods
+
+### presentWidget(from:)
+
+```swift
+public func presentWidget(from viewController: UIViewController)
+```
+
+Presents the widget modally, full-screen, from the given view controller. If no images or videos are loaded, it opens `UIImagePickerController` for the user to select assets from their photo library first.
+
+<ParamField path="viewController" type="UIViewController" required>
+  The view controller that presents the widget. Keep a strong reference to the `CLDUploaderWidget` instance for the duration of the presentation.
+</ParamField>
+
+<Warning>
+  You cannot change `cloudinary`, `configuration`, `images`, or `videos` while the widget is presented. Calls to the corresponding setters are silently ignored.
+</Warning>
+
+---
+
+### dismissWidget()
+
+```swift
+public func dismissWidget()
+```
+
+Dismisses the widget programmatically and calls `uploadWidgetDidDismiss()` on the delegate. You typically do not need to call this directly — the widget dismisses itself after the user taps upload or cancel.
+
+---
+
+### setCloudinary(_:)
+
+```swift
+@discardableResult
+public func setCloudinary(_ cloudinary: CLDCloudinary) -> Self
+```
+
+Replaces the `CLDCloudinary` instance. Must be called before `presentWidget(from:)`.
+
+---
+
+### setConfiguration(_:)
+
+```swift
+@discardableResult
+public func setConfiguration(_ configuration: CLDWidgetConfiguration) -> Self
+```
+
+Replaces the widget configuration. Must be called before `presentWidget(from:)`.
+
+---
+
+### setImages(_:)
+
+```swift
+@discardableResult
+public func setImages(_ images: [UIImage]) -> Self
+```
+
+Replaces the pre-loaded images. Must be called before `presentWidget(from:)`.
+
+---
+
+### setVideos(_:) — AVPlayerItem
+
+```swift
+@discardableResult
+public func setVideos(_ videoItems: [AVPlayerItem]) -> Self
+```
+
+Replaces the pre-loaded videos using `AVPlayerItem` objects. Must be called before `presentWidget(from:)`.
+
+---
+
+### setVideos(_:) — URL
+
+```swift
+@discardableResult
+public func setVideos(_ videoUrls: [URL]) -> Self
+```
+
+Replaces the pre-loaded videos using file `URL` objects. The SDK converts each URL to an `AVPlayerItem` internally. Must be called before `presentWidget(from:)`.
+
+---
+
+### setDelegate(_:)
+
+```swift
+@discardableResult
+public func setDelegate(_ delegate: CLDUploaderWidgetDelegate) -> Self
+```
+
+Sets or replaces the delegate. Can be called at any time.
+
+---
+
+## CLDUploaderWidgetDelegate
+
+Implement `CLDUploaderWidgetDelegate` to receive the upload requests and cancellation events from the widget.
+
+```swift
+@objc public protocol CLDUploaderWidgetDelegate: AnyObject {
+    func uploadWidget(_ widget: CLDUploaderWidget, willCall uploadRequests: [CLDUploadRequest])
+    func widgetDidCancel(_ widget: CLDUploaderWidget)
+    func uploadWidgetDidDismiss()
+}
+```
+
+### uploadWidget(_:willCall:)
+
+```swift
+func uploadWidget(_ widget: CLDUploaderWidget, willCall uploadRequests: [CLDUploadRequest])
+```
+
+Called just before the widget dismisses itself after the user taps upload. The array contains one `CLDUploadRequest` per selected asset (images and videos combined). Use each request to attach a response handler or track progress.
+
+<ParamField path="widget" type="CLDUploaderWidget" required>
+  The widget instance that initiated the uploads.
+</ParamField>
+
+<ParamField path="uploadRequests" type="[CLDUploadRequest]" required>
+  The active upload requests. The requests are already in flight when this method is called.
+</ParamField>
+
+---
+
+### widgetDidCancel(_:)
+
+```swift
+func widgetDidCancel(_ widget: CLDUploaderWidget)
+```
+
+Called when the user cancels out of the widget without uploading any assets.
+
+<ParamField path="widget" type="CLDUploaderWidget" required>
+  The widget instance the user dismissed.
+</ParamField>
+
+---
+
+### uploadWidgetDidDismiss()
+
+```swift
+func uploadWidgetDidDismiss()
+```
+
+Called after the widget's view controller has finished its dismissal animation, whether the session ended in an upload or a cancellation.
+
+---
+
+## CLDWidgetConfiguration
+
+`CLDWidgetConfiguration` controls the in-widget editing experience and the upload authentication strategy.
+
+```swift
+public init(
+    allowRotate: Bool = true,
+    initialAspectLockState: AspectRatioLockState = .enabledAndOff,
+    uploadType: CLDUploadType = CLDUploadType(signed: true, preset: nil)
+)
+```
+
+<ParamField path="allowRotate" type="Bool" default="true">
+  When `true`, the rotate button appears in the image editor. When `false`, the button is hidden and disabled.
+</ParamField>
+
+<ParamField path="initialAspectLockState" type="AspectRatioLockState" default=".enabledAndOff">
+  The initial state of the aspect ratio lock toggle in the editor. See the `AspectRatioLockState` enum below.
+</ParamField>
+
+<ParamField path="uploadType" type="CLDUploadType" default="CLDUploadType(signed: true, preset: nil)">
+  Determines whether uploads are signed (requires `apiKey` and `apiSecret`) or unsigned (requires an upload preset). See `CLDUploadType` below.
+</ParamField>
+
+### AspectRatioLockState
+
+```swift
+@objc public enum AspectRatioLockState: Int {
+    case enabledAndOff
+    case enabledAndOn
+    case disabled
+}
+```
+
+| Case | Behavior |
+|---|---|
+| `.enabledAndOff` | The lock toggle is visible and starts unlocked. The user can lock or unlock the aspect ratio. |
+| `.enabledAndOn` | The lock toggle is visible and starts locked. The user can unlock it. |
+| `.disabled` | The lock toggle is hidden. The user can freely change the crop aspect ratio but cannot lock it. |
+
+---
+
+## CLDUploadType
+
+`CLDUploadType` specifies whether assets are uploaded with a signed or unsigned request.
+
+```swift
+public init(signed: Bool, preset: String?)
+```
+
+<ParamField path="signed" type="Bool" required>
+  Pass `true` to use signed uploads (requires `apiKey` and `apiSecret` on `CLDConfiguration`). Pass `false` to use unsigned uploads with a preset.
+</ParamField>
+
+<ParamField path="preset" type="String?">
+  The upload preset name to use for unsigned uploads. Required when `signed` is `false`.
+</ParamField>
+
+<Warning>
+  Unsigned uploads require a preset. If you pass `signed: false` with a `nil` or empty preset, the SDK logs a warning and the upload will fail.
+</Warning>
+
+---
+
+## Usage example
+
+```swift
+import Cloudinary
+import UIKit
+
+class UploadDemoViewController: UIViewController {
+
+    var widget: CLDUploaderWidget?
+
+    @IBAction func presentWidgetTapped(_ sender: UIButton) {
+        let config = CLDConfiguration(cloudName: "my-cloud", apiKey: "key", apiSecret: "secret", secure: true)
+        let cloudinary = CLDCloudinary(configuration: config)
+
+        // Use an unsigned upload preset to avoid exposing your API secret
+        let uploadType = CLDUploadType(signed: false, preset: "my_unsigned_preset")
+
+        let widgetConfig = CLDWidgetConfiguration(
+            allowRotate: true,
+            initialAspectLockState: .enabledAndOn,
+            uploadType: uploadType
+        )
+
+        let widget = CLDUploaderWidget(
+            cloudinary: cloudinary,
+            configuration: widgetConfig,
+            images: nil,       // opens photo library picker
+            delegate: self
+        )
+
+        self.widget = widget
+        widget.presentWidget(from: self)
+    }
+}
+
+extension UploadDemoViewController: CLDUploaderWidgetDelegate {
+
+    func uploadWidget(_ widget: CLDUploaderWidget, willCall uploadRequests: [CLDUploadRequest]) {
+        uploadRequests.forEach { request in
+            request.response { result, error in
+                if let error = error {
+                    print("Upload failed: \(error.localizedDescription)")
+                    return
+                }
+                print("Uploaded public ID: \(result?.publicId ?? "unknown")")
+            }
+        }
+    }
+
+    func widgetDidCancel(_ widget: CLDUploaderWidget) {
+        print("User cancelled the upload widget.")
+    }
+
+    func uploadWidgetDidDismiss() {
+        self.widget = nil
+    }
+}
+```
+
+<Tip>
+  Hold a strong reference to the `CLDUploaderWidget` instance (as shown with `self.widget`) for the lifetime of the presentation. The widget uses a `weak` reference to the presenting view controller and a `weak` delegate, so it will be deallocated if nothing retains it.
+</Tip>

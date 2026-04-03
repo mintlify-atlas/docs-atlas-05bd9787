@@ -1,0 +1,400 @@
+---
+title: 'CLDUrl'
+description: 'Builds Cloudinary delivery URLs for images, videos, and raw files. Obtain an instance from CLDCloudinary.createUrl() and chain setter calls before calling generate().'
+---
+
+`CLDUrl` is a fluent builder for Cloudinary delivery URLs. Every setter returns `self`, so you can chain calls in a single expression. Call `generate(_:)` at the end to produce the final URL string.
+
+```swift
+let url = cloudinary.createUrl()
+    .setResourceType(.video)
+    .setFormat("mp4")
+    .setTransformation(CLDTransformation().setWidth(1280).setHeight(720).setCrop("fill"))
+    .generate("my-video-id")
+// => "https://res.cloudinary.com/my-cloud/video/upload/c_fill,h_720,w_1280/my-video-id.mp4?_a=..."
+```
+
+<Note>
+  Do not instantiate `CLDUrl` directly. Use `CLDCloudinary.createUrl()` so the instance is bound to your account configuration.
+</Note>
+
+---
+
+## Setter methods
+
+All setter methods return `CLDUrl` (the same instance), enabling method chaining.
+
+### setPublicId(_:)
+
+```swift
+open func setPublicId(_ publicId: String) -> CLDUrl
+```
+
+Stores the public ID so you can call `generate()` (the no-argument overload) later without passing the ID explicitly.
+
+<ParamField path="publicId" type="String" required>
+  The Cloudinary public ID of the asset.
+</ParamField>
+
+```swift
+let url = cloudinary.createUrl()
+    .setPublicId("folder/sample")
+    .generate()
+```
+
+---
+
+### setType(_:) *(CLDType overload)*
+
+```swift
+open func setType(_ type: CLDType) -> CLDUrl
+```
+
+Sets the media source type using the `CLDType` enum.
+
+<ParamField path="type" type="CLDType" required>
+  The delivery type. Defaults to `.upload`. See [CLDType](#cldtype) for all values.
+</ParamField>
+
+```swift
+cloudinary.createUrl().setType(.fetch).generate("https://example.com/image.jpg")
+```
+
+---
+
+### setType(_:) *(String overload)*
+
+```swift
+open func setType(_ type: String) -> CLDUrl
+```
+
+Sets the media source type using a raw string value. Use the `CLDType` enum overload when possible.
+
+<ParamField path="type" type="String" required>
+  The delivery type string (e.g., `"upload"`, `"fetch"`, `"facebook"`).
+</ParamField>
+
+---
+
+### setResourceType(_:) *(CLDUrlResourceType overload)*
+
+```swift
+open func setResourceType(_ resourceType: CLDUrlResourceType) -> CLDUrl
+```
+
+Sets the resource type using the `CLDUrlResourceType` enum.
+
+<ParamField path="resourceType" type="CLDUrlResourceType" required>
+  The asset resource type. Defaults to `.image`. See [CLDUrlResourceType](#cldurlresourcetype) for all values.
+</ParamField>
+
+```swift
+cloudinary.createUrl().setResourceType(.video).generate("my-video")
+```
+
+---
+
+### setResourceType(_:) *(String overload)*
+
+```swift
+open func setResourceType(_ resourceType: String) -> CLDUrl
+```
+
+Sets the resource type using a raw string value. Use the `CLDUrlResourceType` enum overload when possible.
+
+<ParamField path="resourceType" type="String" required>
+  The resource type string (e.g., `"image"`, `"video"`, `"raw"`).
+</ParamField>
+
+---
+
+### setFormat(_:)
+
+```swift
+open func setFormat(_ format: String) -> CLDUrl
+```
+
+Appends a file extension to the public ID in the generated URL. For `fetch` type URLs, the format is applied via a transformation parameter instead of a URL extension.
+
+<ParamField path="format" type="String" required>
+  The target format extension, without a leading dot (e.g., `"jpg"`, `"webp"`, `"mp4"`, `"pdf"`).
+</ParamField>
+
+```swift
+cloudinary.createUrl().setFormat("webp").generate("sample")
+// => ".../image/upload/sample.webp?..."
+```
+
+---
+
+### setVersion(_:)
+
+```swift
+open func setVersion(_ version: String) -> CLDUrl
+```
+
+Sets the asset version string. The SDK prefixes the value with `v` automatically (e.g., `"1234567890"` becomes `v1234567890` in the URL). When not set and the public ID contains folder separators, the SDK inserts `v1` by default (controlled by `forceVersion`).
+
+<ParamField path="version" type="String" required>
+  The numeric version string without the `v` prefix (e.g., `"1234567890"`).
+</ParamField>
+
+```swift
+cloudinary.createUrl().setVersion("1234567890").generate("folder/sample")
+// => ".../image/upload/v1234567890/folder/sample?..."
+```
+
+---
+
+### setSuffix(_:)
+
+```swift
+open func setSuffix(_ suffix: String) -> CLDUrl
+```
+
+Appends a URL-friendly suffix after the public ID. Supported on private CDN only, and only for `image/upload`, `image/private`, and `raw/upload` resource/type combinations. The suffix must not contain `.` or `/`.
+
+<ParamField path="suffix" type="String" required>
+  The URL suffix string. Must not contain `.` or `/`.
+</ParamField>
+
+<Warning>
+  Using a suffix on a non-private CDN or with an unsupported resource/type combination causes `generate()` to return `nil`.
+</Warning>
+
+```swift
+cloudinary.createUrl().setSuffix("my-pretty-name").generate("sample")
+```
+
+---
+
+### setUseRootPath(_:)
+
+```swift
+open func setUseRootPath(_ useRootPath: Bool) -> CLDUrl
+```
+
+When `true`, omits the `image/upload` path segment, producing a shorter URL. Only valid for `image/upload` resources.
+
+<ParamField path="useRootPath" type="Bool" required>
+  `true` to use a root path; `false` (default) to use the full resource/type path.
+</ParamField>
+
+<Warning>
+  `generate()` returns `nil` when `useRootPath` is `true` and the resource type is not `image/upload`.
+</Warning>
+
+```swift
+cloudinary.createUrl().setUseRootPath(true).generate("sample")
+// => "https://res.cloudinary.com/my-cloud/sample?..."
+```
+
+---
+
+### setShortenUrl(_:)
+
+```swift
+open func setShortenUrl(_ shortenUrl: Bool) -> CLDUrl
+```
+
+When `true`, replaces the `image/upload` path segment with the abbreviated `iu`. Only valid for `image/upload` resources.
+
+<ParamField path="shortenUrl" type="Bool" required>
+  `true` to use the shortened `iu` path; `false` (default) for the full path.
+</ParamField>
+
+```swift
+cloudinary.createUrl().setShortenUrl(true).generate("sample")
+// => ".../iu/sample?..."
+```
+
+---
+
+### setForceVersion(_:)
+
+```swift
+open func setForceVersion(_ forceVersion: Bool) -> CLDUrl
+```
+
+Controls whether the SDK automatically inserts `v1` into the URL when the public ID contains folder separators and no explicit version is set. Defaults to `true`.
+
+Set to `false` to suppress the automatic version insertion.
+
+<ParamField path="forceVersion" type="Bool" required>
+  `true` (default) to auto-insert `v1`; `false` to suppress it.
+</ParamField>
+
+```swift
+cloudinary.createUrl()
+    .setForceVersion(false)
+    .generate("folder/sample")
+// => ".../image/upload/folder/sample?..." (no v1 inserted)
+```
+
+---
+
+### setTransformation(_:)
+
+```swift
+@discardableResult
+open func setTransformation(_ transformation: CLDTransformation) -> CLDUrl
+```
+
+Attaches a transformation chain to the URL. The transformation string is inserted between the resource type/delivery type segment and the version/public ID.
+
+<ParamField path="transformation" type="CLDTransformation" required>
+  A `CLDTransformation` instance describing the desired image or video manipulation.
+</ParamField>
+
+```swift
+let transformation = CLDTransformation()
+    .setWidth(300)
+    .setHeight(300)
+    .setCrop("fill")
+    .setGravity("face")
+
+let url = cloudinary.createUrl()
+    .setTransformation(transformation)
+    .generate("portrait")
+// => ".../image/upload/c_fill,g_face,h_300,w_300/portrait?..."
+```
+
+---
+
+## generate() methods
+
+### generate(signUrl:)
+
+```swift
+open func generate(signUrl: Bool = false) -> String?
+```
+
+Generates the URL string using the public ID previously set with `setPublicId(_:)`. Returns `nil` if no public ID was set or if an error occurs (such as a missing API secret when signing is requested).
+
+<ParamField path="signUrl" type="Bool" default="false">
+  When `true`, the SDK computes a signature from the transformation, public ID, and API secret, and appends it to the URL. Requires `apiSecret` to be set on the configuration.
+</ParamField>
+
+<ResponseField name="return" type="String?">
+  The fully-qualified Cloudinary delivery URL, or `nil` on error.
+</ResponseField>
+
+```swift
+let url = cloudinary.createUrl()
+    .setPublicId("sample")
+    .generate(signUrl: true)
+```
+
+---
+
+### generate(_:signUrl:)
+
+```swift
+open func generate(_ publicId: String, signUrl: Bool = false) -> String?
+```
+
+Generates the URL string for the given public ID. This is the primary method for producing delivery URLs.
+
+<ParamField path="publicId" type="String" required>
+  The remote asset's public ID. For preloaded assets (e.g., from unsigned uploads), you may pass the full preloaded identifier string; the SDK parses it automatically.
+</ParamField>
+
+<ParamField path="signUrl" type="Bool" default="false">
+  When `true`, computes and appends a URL signature. Requires `apiSecret` to be set on the configuration. Uses the `signatureAlgorithm` and `longUrlSignature` settings from `CLDConfiguration`.
+</ParamField>
+
+<ResponseField name="return" type="String?">
+  The fully-qualified Cloudinary delivery URL, or `nil` if:
+  - `signUrl` is `true` and `apiSecret` is `nil`
+  - An invalid transformation was attached
+  - `setSuffix` was used on a non-private CDN
+  - `setUseRootPath(true)` was used with a non-`image/upload` resource type
+</ResponseField>
+
+```swift
+// Basic URL
+let basic = cloudinary.createUrl().generate("sample")
+
+// Signed URL
+let signed = cloudinary.createUrl().generate("private/document", signUrl: true)
+
+// Full example with transformation
+let url = cloudinary.createUrl()
+    .setResourceType(.image)
+    .setFormat("webp")
+    .setTransformation(
+        CLDTransformation().setWidth(800).setQuality("auto")
+    )
+    .generate("blog/hero-image")
+```
+
+---
+
+## URL construction notes
+
+### Analytics query parameter
+
+When `CLDConfiguration.analytics` is `true` (the default) and the public ID does not already contain a query string, `generate()` appends `?_a=<signature>`. This parameter is used by Cloudinary for SDK usage analytics and does not affect delivery behavior.
+
+### Preloaded asset identifiers
+
+If the public ID matches the pattern `<resourceType>/<type>/v<version>/<basename>`, the SDK automatically extracts those components and overrides the values set by `setResourceType`, `setType`, and `setVersion`.
+
+### URL deduplication
+
+After assembly, the SDK collapses consecutive `/` separators (excluding the `://` in the protocol) using a regular expression replacement.
+
+---
+
+## Enumerations
+
+### CLDType
+
+```swift
+@objc public enum CLDType: Int
+```
+
+The delivery type (media source) for a Cloudinary URL. Controls how Cloudinary fetches or interprets the asset.
+
+| Case | String value | Description |
+|---|---|---|
+| `.upload` | `"upload"` | Asset stored in your Cloudinary account via upload. Default. |
+| `.fetch` | `"fetch"` | Cloudinary fetches the asset from an external URL on demand. |
+| `.facebook` | `"facebook"` | Delivers a Facebook profile image by Facebook user ID. |
+| `.twitter` | `"twitter"` | Delivers a Twitter profile image by Twitter user ID. |
+| `.twitterName` | `"twitter_name"` | Delivers a Twitter profile image by Twitter username. |
+| `.sprite` | `"sprite"` | Delivers a generated CSS sprite. |
+| `.private` | `"private"` | Asset stored with restricted access. |
+| `.authenticated` | `"authenticated"` | Asset requiring an authentication signature in the URL. |
+
+`CLDType` conforms to `CustomStringConvertible`; calling `String(describing: type)` returns the string value shown above.
+
+```swift
+cloudinary.createUrl().setType(.fetch).generate("https://example.com/photo.jpg")
+```
+
+---
+
+### CLDUrlResourceType
+
+```swift
+@objc public enum CLDUrlResourceType: Int
+```
+
+The type of asset the URL points to. This value is included as a path segment in every delivery URL.
+
+| Case | String value | Description |
+|---|---|---|
+| `.image` | `"image"` | Image files (JPEG, PNG, GIF, WebP, etc.). Default. |
+| `.raw` | `"raw"` | Non-media files (PDF, ZIP, etc.). |
+| `.video` | `"video"` | Video and audio files (MP4, MOV, MP3, etc.). |
+| `.auto` | `"auto"` | Cloudinary auto-detects the resource type at upload time. |
+
+`CLDUrlResourceType` conforms to `CustomStringConvertible`; calling `String(describing: type)` returns the string value shown above.
+
+```swift
+cloudinary.createUrl()
+    .setResourceType(.video)
+    .setFormat("mp4")
+    .generate("intro-clip")
+```

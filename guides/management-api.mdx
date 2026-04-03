@@ -1,0 +1,587 @@
+---
+title: 'Management API'
+description: 'Rename, delete, tag, add context, and trigger eager transforms on assets already in your Cloudinary account using CLDManagementApi.'
+keywords: ['management', 'rename', 'destroy', 'delete', 'tags', 'context', 'explicit', 'CLDManagementApi']
+---
+
+`CLDManagementApi` lets you manage assets that are already stored in your Cloudinary account. All operations in this class require a signed request, so you must supply `apiKey` and `apiSecret` in your `CLDConfiguration`.
+
+<Warning>
+Every method on `CLDManagementApi` signs its request with your API secret. Never ship a binary that embeds a live API secret. Use the management API only from trusted back-end code or from a test environment.
+</Warning>
+
+## Getting an instance
+
+Obtain `CLDManagementApi` from your `CLDCloudinary` instance using the factory method `createManagementApi()`.
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    let config = CLDConfiguration(
+        cloudName: "my-cloud",
+        apiKey: "my-api-key",
+        apiSecret: "my-api-secret"
+    )
+    let cloudinary = CLDCloudinary(configuration: config)
+    let managementApi = cloudinary.createManagementApi()
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    CLDConfiguration *config = [[CLDConfiguration alloc]
+        initWithCloudName:@"my-cloud"
+        apiKey:@"my-api-key"
+        apiSecret:@"my-api-secret"
+        privateCdn:NO secure:NO cdnSubdomain:NO
+        secureCdnSubdomain:NO longUrlSignature:NO
+        signatureAlgorithm:SignatureAlgorithmSha1
+        signatureVersion:2
+        secureDistribution:nil cname:nil
+        uploadPrefix:nil timeout:nil analytics:YES];
+    CLDCloudinary *cloudinary = [[CLDCloudinary alloc] initWithConfiguration:config
+                                                               networkAdapter:nil
+                                                         sessionConfiguration:nil];
+    CLDManagementApi *mgmt = [cloudinary createManagementApi];
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Request lifecycle
+
+Every method returns a typed request object (`CLDRenameRequest`, `CLDDeleteRequest`, `CLDTagRequest`, or `CLDExplicitRequest`). All of these inherit from `CLDRequest`, which exposes three lifecycle methods:
+
+<AccordionGroup>
+  <Accordion title="cancel()">
+    Cancels the in-flight network request. The completion handler is not called after cancellation.
+
+    ```swift
+    let req = managementApi.rename("old-id", to: "new-id")
+    req.cancel()
+    ```
+  </Accordion>
+  <Accordion title="suspend()">
+    Pauses the underlying network task. Call `resume()` to continue.
+
+    ```swift
+    req.suspend()
+    // later…
+    req.resume()
+    ```
+  </Accordion>
+  <Accordion title="resume()">
+    Resumes a suspended request.
+
+    ```swift
+    req.resume()
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Rename an asset
+
+```swift
+func rename(
+    _ publicId: String,
+    to: String,
+    overwrite: Bool? = nil,
+    invalidate: Bool? = nil,
+    params: CLDRenameRequestParams? = nil,
+    completionHandler: ((_ result: CLDRenameResult?, _ error: Error?) -> ())?  = nil
+) -> CLDRenameRequest
+```
+
+Assigns a new public ID to an existing asset. The asset retains all transformations, tags, and metadata.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField path="publicId" type="String" required>
+      The current public ID of the uploaded asset.
+    </ParamField>
+    <ParamField path="to" type="String" required>
+      The new public ID to assign to the asset.
+    </ParamField>
+    <ParamField path="overwrite" type="Bool">
+      When `true`, overwrites an existing asset that already uses the target public ID. Defaults to `false`.
+    </ParamField>
+    <ParamField path="invalidate" type="Bool">
+      When `true`, invalidates CDN-cached copies of the original URL and all its derived versions. Defaults to `false`.
+    </ParamField>
+    <ParamField path="params" type="CLDRenameRequestParams">
+      Optional parameter object. Supports additional keys including `notification_url`, `context` (Boolean — include contextual metadata in the response), and `metadata` (Boolean — include structured metadata in the response).
+    </ParamField>
+    <ParamField path="completionHandler" type="closure">
+      Called on completion with a `CLDRenameResult` or an `Error`.
+    </ParamField>
+  </Accordion>
+  <Accordion title="Response fields — CLDRenameResult">
+    <ResponseField name="publicId" type="String">
+      The new public ID.
+    </ResponseField>
+    <ResponseField name="format" type="String">
+      The file format (e.g. `"jpg"`).
+    </ResponseField>
+    <ResponseField name="version" type="String">
+      The asset version number.
+    </ResponseField>
+    <ResponseField name="resourceType" type="String">
+      The resource type (e.g. `"image"`, `"video"`).
+    </ResponseField>
+    <ResponseField name="url" type="String">
+      The HTTP delivery URL of the renamed asset.
+    </ResponseField>
+    <ResponseField name="secureUrl" type="String">
+      The HTTPS delivery URL of the renamed asset.
+    </ResponseField>
+    <ResponseField name="width" type="Int">
+      Image width in pixels.
+    </ResponseField>
+    <ResponseField name="height" type="Int">
+      Image height in pixels.
+    </ResponseField>
+    <ResponseField name="tags" type="[String]">
+      Tags currently assigned to the asset.
+    </ResponseField>
+    <ResponseField name="context" type="AnyObject">
+      Contextual metadata key-value pairs.
+    </ResponseField>
+  </Accordion>
+</AccordionGroup>
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    managementApi.rename("cats/tabby", to: "cats/tabby-v2", overwrite: true, invalidate: true) { result, error in
+        if let result = result {
+            print("Renamed to \(result.publicId ?? "") — \(result.secureUrl ?? "")")
+        } else if let error = error {
+            print("Rename failed: \(error)")
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    [mgmt rename:@"cats/tabby" to:@"cats/tabby-v2"
+        overwrite:@YES invalidate:@YES params:nil
+        completionHandler:^(CLDRenameResult *result, NSError *error) {
+            if (result) {
+                NSLog(@"Renamed to %@", result.publicId);
+            }
+        }];
+    ```
+  </Tab>
+</Tabs>
+
+### CLDRenameRequestParams
+
+Use `CLDRenameRequestParams` to supply additional options beyond those available as direct method arguments.
+
+```swift
+// Available raw parameter keys (set via the params: [String: AnyObject] initializer)
+// "from_public_id", "to_public_id", "overwrite", "invalidate",
+// "notification_url", "context", "metadata"
+let extra = CLDRenameRequestParams(params: [
+    "notification_url": "https://example.com/webhooks/cloudinary" as AnyObject
+])
+managementApi.rename("old", to: "new", params: extra)
+```
+
+---
+
+## Delete an asset permanently
+
+```swift
+func destroy(
+    _ publicId: String,
+    params: CLDDestroyRequestParams? = nil,
+    completionHandler: ((_ result: CLDDeleteResult?, _ error: Error?) -> ())? = nil
+) -> CLDDeleteRequest
+```
+
+Immediately and permanently removes an asset from your Cloudinary account.
+
+<Warning>
+`destroy` is irreversible. The asset and all its derived versions are deleted from Cloudinary storage.
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField path="publicId" type="String" required>
+      The public ID of the asset to delete.
+    </ParamField>
+    <ParamField path="params" type="CLDDestroyRequestParams">
+      Optional parameter object. Use `setType(_:)` to target a delivery type other than `upload`, and `setInvalidate(_:)` to purge CDN caches.
+    </ParamField>
+    <ParamField path="completionHandler" type="closure">
+      Called on completion with a `CLDDeleteResult` or an `Error`.
+    </ParamField>
+  </Accordion>
+  <Accordion title="Response fields — CLDDeleteResult">
+    <ResponseField name="result" type="String">
+      `"ok"` when the asset was successfully deleted.
+    </ResponseField>
+  </Accordion>
+</AccordionGroup>
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    let destroyParams = CLDDestroyRequestParams()
+    destroyParams.setInvalidate(true)
+
+    managementApi.destroy("obsolete/banner", params: destroyParams) { result, error in
+        if result?.result == "ok" {
+            print("Asset deleted.")
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    CLDDestroyRequestParams *p = [[CLDDestroyRequestParams alloc] init];
+    [p setInvalidate:YES];
+
+    [mgmt destroy:@"obsolete/banner" params:p
+        completionHandler:^(CLDDeleteResult *result, NSError *error) {
+            NSLog(@"%@", result.result);
+        }];
+    ```
+  </Tab>
+</Tabs>
+
+### CLDDestroyRequestParams
+
+| Method | Description |
+|--------|-------------|
+| `setType(_ type: CLDType) -> Self` | Sets the delivery type (e.g. `.upload`, `.private_`). |
+| `setType(_ type: String) -> Self` | Sets the delivery type using a raw string. |
+| `setInvalidate(_ invalidate: Bool) -> Self` | When `true`, purges the CDN cache for the deleted asset. |
+
+---
+
+## Tag management
+
+Tags categorize your assets and enable group actions such as sprite generation, ZIP archives, and animated GIFs. Each asset can carry multiple tags.
+
+### Add a tag
+
+```swift
+func addTag(
+    _ tag: String,
+    publicIds: [String],
+    params: CLDTagsRequestParams? = nil,
+    completionHandler: ((_ result: CLDTagResult?, _ error: Error?) -> ())? = nil
+) -> CLDTagRequest
+```
+
+Appends a tag to one or more assets without affecting their existing tags.
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    managementApi.addTag("featured", publicIds: ["hero/banner", "hero/splash"]) { result, error in
+        print("Tagged: \(result?.publicIds ?? [])")
+    }
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    [mgmt addTag:@"featured"
+       publicIds:@[@"hero/banner", @"hero/splash"]
+          params:nil completionHandler:^(CLDTagResult *r, NSError *e) {
+              NSLog(@"%@", r.publicIds);
+          }];
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+You can also pass an array of tags using `addTag(_ tag: [String], publicIds: [String], ...)`. In Objective-C, use the selector `addTags:publicIds:params:completionHandler:`.
+</Note>
+
+### Remove a tag
+
+```swift
+func removeTag(
+    _ tag: String,
+    publicIds: [String],
+    params: CLDTagsRequestParams? = nil,
+    completionHandler: ((_ result: CLDTagResult?, _ error: Error?) -> ())? = nil
+) -> CLDTagRequest
+```
+
+Removes a specific tag from the given assets, leaving all other tags intact.
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    managementApi.removeTag("draft", publicIds: ["articles/intro"]) { result, error in
+        print("Untagged assets: \(result?.publicIds ?? [])")
+    }
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    [mgmt removeTag:@"draft" publicIds:@[@"articles/intro"]
+             params:nil completionHandler:nil];
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+To remove multiple tags at once, use `removeTag(_ tag: [String], publicIds: [String], ...)`. In Objective-C, use the selector `removeTags:publicIds:params:completionHandler:`.
+</Note>
+
+### Replace all tags
+
+```swift
+func replaceTag(
+    _ tag: String,
+    publicIds: [String],
+    params: CLDTagsRequestParams? = nil,
+    completionHandler: ((_ result: CLDTagResult?, _ error: Error?) -> ())? = nil
+) -> CLDTagRequest
+```
+
+Replaces **all** existing tags on the given assets with the single supplied tag. Use the array variant or `CLDTagsRequestParams` to replace with a set of tags.
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    managementApi.replaceTag("archived", publicIds: ["old/post-1", "old/post-2"]) { result, error in
+        print("Tags replaced on: \(result?.publicIds ?? [])")
+    }
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    [mgmt replaceTag:@"archived"
+           publicIds:@[@"old/post-1", @"old/post-2"]
+              params:nil completionHandler:nil];
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+To replace with multiple tags at once, use `replaceTag(_ tag: [String], publicIds: [String], ...)`. In Objective-C, use `replaceTags:publicIds:params:completionHandler:`.
+</Note>
+
+### Response fields — CLDTagResult
+
+<ResponseField name="publicIds" type="[String]">
+  The list of asset public IDs that were affected by the tag operation.
+</ResponseField>
+
+### CLDTagsRequestParams
+
+`CLDTagsRequestParams` is the shared parameter object for all tag operations. You can initialize it with a raw dictionary.
+
+```swift
+// Raw parameter keys: "tag", "public_ids", "command"
+// The "command" is set automatically by addTag / removeTag / replaceTag.
+let params = CLDTagsRequestParams(params: ["resource_type": "video" as AnyObject])
+managementApi.addTag("highlight", publicIds: ["promo/clip-1"], params: params)
+```
+
+---
+
+## Apply actions to existing assets — `explicit`
+
+```swift
+func explicit(
+    _ publicId: String,
+    type: CLDType,
+    params: CLDExplicitRequestParams? = nil,
+    completionHandler: ((_ result: CLDExplicitResult?, _ error: Error?) -> ())? = nil
+) -> CLDExplicitRequest
+```
+
+The `explicit` method applies actions to an already-uploaded asset. The most common use cases are:
+
+- Pre-generating eager transformations so they are served from cache on first access.
+- Applying transformations when [Strict Transformations](https://cloudinary.com/documentation/upload_images#control_access_to_images) are enabled for your account.
+
+`CLDExplicitResult` extends `CLDUploadResult`, so it carries the full set of upload response fields including `publicId`, `secureUrl`, `width`, `height`, `format`, `tags`, `eager`, and more.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField path="publicId" type="String" required>
+      The public ID of the asset to update.
+    </ParamField>
+    <ParamField path="type" type="CLDType" required>
+      The delivery type of the resource. Pass `.upload` for standard uploaded assets.
+    </ParamField>
+    <ParamField path="params" type="CLDExplicitRequestParams">
+      Extended parameter object inheriting from `CLDUploadRequestParams`. Use it to supply eager transformations, tags, context, and all other upload-compatible parameters.
+    </ParamField>
+    <ParamField path="completionHandler" type="closure">
+      Called on completion with a `CLDExplicitResult` or an `Error`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+<Tabs>
+  <Tab title="Swift">
+    ```swift
+    // Pre-generate a thumbnail and a WebP version eagerly
+    let transformation = CLDTransformation()
+        .setWidth(300)
+        .setHeight(300)
+        .setCrop("fill")
+
+    let params = CLDExplicitRequestParams()
+    params.setEager([transformation])
+    params.setTags(["processed", "thumbnail-ready"])
+
+    managementApi.explicit("products/shoe-1", type: .upload, params: params) { result, error in
+        if let result = result {
+            print("Explicit done — secure URL: \(result.secureUrl ?? "")")
+        } else if let error = error {
+            print("Explicit failed: \(error)")
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Objective-C">
+    ```objc
+    CLDExplicitRequestParams *params = [[CLDExplicitRequestParams alloc] init];
+    [params setTags:@[@"processed"]];
+
+    [mgmt explicitPublicId:@"products/shoe-1"
+               stringType:@"upload"
+                   params:params
+        completionHandler:^(CLDExplicitResult *result, NSError *error) {
+            NSLog(@"%@", result.secureUrl);
+        }];
+    ```
+  </Tab>
+</Tabs>
+
+### CLDExplicitRequestParams
+
+`CLDExplicitRequestParams` inherits from `CLDUploadRequestParams`, giving you access to the full set of upload parameters. Commonly used setters include:
+
+| Method | Description |
+|--------|-------------|
+| `setEager([CLDTransformation])` | List of transformations to generate eagerly. |
+| `setTags([String])` | Replaces the asset's current tags. |
+| `setPublicId(String)` | Sets the public ID (already set by the `explicit` method). |
+| `setType(String)` | Sets the delivery type (already set by the `explicit` method). |
+
+---
+
+## Pre-generate pages from a PDF — `explode`
+
+```swift
+func explode(
+    _ publicId: String,
+    transformation: CLDTransformation,
+    params: CLDExplodeRequestParams? = nil,
+    completionHandler: ((_ result: CLDExplodeResult?, _ error: Error?) -> ())? = nil
+) -> CLDExplodeRequest
+```
+
+Creates a derived image for each page in a multi-page PDF. Each page is stored as a separate derived resource under the same public ID, accessible via the `page` transformation parameter. This pre-generates all pages so they are served from cache on first access.
+
+```swift
+let transformation = CLDTransformation().setPage("all")
+managementApi.explode("documents/annual-report", transformation: transformation) { result, error in
+    print(result?.status ?? "")
+}
+```
+
+---
+
+## Generate a sprite — `generateSprite`
+
+```swift
+func generateSprite(
+    _ tag: String,
+    params: CLDSpriteRequestParams? = nil,
+    completionHandler: ((_ result: CLDSpriteResult?, _ error: Error?) -> ())? = nil
+) -> CLDSpriteRequest
+```
+
+Merges all images sharing the given tag into a single sprite image. Sprites reduce the number of HTTP requests required to display multiple images.
+
+```swift
+managementApi.generateSprite("icons") { result, error in
+    if let result = result {
+        print("Sprite CSS URL: \(result.cssUrl ?? "")")
+        print("Sprite image URL: \(result.imageUrl ?? "")")
+    }
+}
+```
+
+---
+
+## Create an animated GIF — `multi`
+
+```swift
+func multi(
+    _ tag: String,
+    params: CLDMultiRequestParams? = nil,
+    completionHandler: ((_ result: CLDMultiResult?, _ error: Error?) -> ())? = nil
+) -> CLDMultiRequest
+```
+
+Creates a single animated GIF from all images sharing the given tag. Images are sorted alphabetically by public ID, and each becomes one frame of the resulting GIF.
+
+```swift
+managementApi.multi("animation-frames") { result, error in
+    if let result = result {
+        print("Animated GIF URL: \(result.url ?? "")")
+    }
+}
+```
+
+---
+
+## Generate an image from text — `text`
+
+```swift
+func text(
+    _ text: String,
+    params: CLDTextRequestParams? = nil,
+    completionHandler: ((_ result: CLDTextResult?, _ error: Error?) -> ())? = nil
+) -> CLDTextRequest
+```
+
+Dynamically generates an image from a text string. The resulting image can be used as an overlay, a standalone asset, or any other purpose that requires a text-as-image resource. Use `CLDTextRequestParams` to control the font, size, color, and style.
+
+```swift
+let params = CLDTextRequestParams()
+managementApi.text("Hello, World!", params: params) { result, error in
+    if let result = result {
+        print("Text image public ID: \(result.publicId ?? "")")
+    }
+}
+```
+
+---
+
+## Delete by client-side token
+
+```swift
+func deleteByToken(
+    _ token: String,
+    params: CLDDeleteByTokenRequestParams? = nil,
+    completionHandler: ((_ result: CLDDeleteResult?, _ error: Error?) -> ())? = nil
+) -> CLDDeleteRequest
+```
+
+Deletes an asset using a short-lived deletion token received in an upload response. Tokens are valid for 10 minutes after the upload completes. After that window, use `destroy` instead.
+
+<Tip>
+To receive a deletion token in the upload response, set `return_delete_token: true` in your upload parameters.
+</Tip>
+
+```swift
+managementApi.deleteByToken("delete-token-from-upload-response") { result, error in
+    print(result?.result ?? "no result")
+}
+```

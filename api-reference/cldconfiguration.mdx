@@ -1,0 +1,428 @@
+---
+title: 'CLDConfiguration'
+description: 'Holds all account and behavior settings used by a CLDCloudinary instance. Create one configuration object and pass it to the CLDCloudinary initializer.'
+---
+
+`CLDConfiguration` stores your Cloudinary account credentials and the flags that control how URLs are constructed and how requests are signed. All properties are read-only after initialization; create a new instance to change settings.
+
+```swift
+let config = CLDConfiguration(
+    cloudName: "my-cloud",
+    apiKey: "123456789012345",
+    apiSecret: "abcdefghijklmnopqrstuvwxyz",
+    secure: true
+)
+let cloudinary = CLDCloudinary(configuration: config)
+```
+
+---
+
+## Properties
+
+All properties below are declared `open fileprivate(set)` unless noted otherwise, meaning they are publicly readable but can only be set during initialization.
+
+### cloudName
+
+```swift
+open fileprivate(set) var cloudName: String!
+```
+
+Your Cloudinary cloud name, found in the [Cloudinary console](https://cloudinary.com/console). Required for every configuration.
+
+---
+
+### apiKey
+
+```swift
+open fileprivate(set) var apiKey: String?
+```
+
+Your account API key. Required for signed uploads and management API calls. Defaults to `nil`.
+
+---
+
+### apiSecret
+
+```swift
+open fileprivate(set) var apiSecret: String?
+```
+
+Your account API secret. Required for signing URLs (`signUrl: true`) and for authenticated API calls. Defaults to `nil`.
+
+<Warning>
+  Never embed your API secret in a client-side app distributed to end users. Use unsigned uploads or proxy signing requests through your own server.
+</Warning>
+
+---
+
+### privateCdn
+
+```swift
+open fileprivate(set) var privateCdn: Bool
+```
+
+When `true`, the SDK uses your private CDN subdomain (`<cloudName>-res.cloudinary.com`) instead of the shared CDN. Defaults to `false`. Automatically set to `true` when a path component is present in a `cloudinary://` URL.
+
+---
+
+### secure
+
+```swift
+open fileprivate(set) var secure: Bool
+```
+
+When `true`, generated URLs use `https://`. When `false`, they use `http://`. Defaults to `false` in the designated initializer. The URL-based initializer (`init?(cloudinaryUrl:)`) leaves this `false` unless `?secure=true` is appended to the URL.
+
+<Tip>
+  Set `secure: true` in production. Most app transport security policies require HTTPS.
+</Tip>
+
+---
+
+### cdnSubdomain
+
+```swift
+open fileprivate(set) var cdnSubdomain: Bool
+```
+
+When `true`, the SDK uses a CDN subdomain derived from a CRC32 of the public ID to improve cache distribution. Defaults to `false`.
+
+---
+
+### secureCdnSubdomain
+
+```swift
+open fileprivate(set) var secureCdnSubdomain: Bool
+```
+
+When `true` and `secure` is also `true`, the SDK selects a numbered secure CDN subdomain (e.g., `res-2.cloudinary.com`) for cache sharding. Defaults to `false`.
+
+---
+
+### longUrlSignature
+
+```swift
+open fileprivate(set) var longUrlSignature: Bool
+```
+
+When `true`, signed URLs use a 32-character signature (long signature) instead of the default 8-character short signature. Long signatures always use the SHA-256 algorithm regardless of `signatureAlgorithm`. Defaults to `false`.
+
+---
+
+### signatureAlgorithm
+
+```swift
+open fileprivate(set) var signatureAlgorithm: SignatureAlgorithm
+```
+
+The hashing algorithm used when generating URL signatures. Defaults to `.sha1`.
+
+See [SignatureAlgorithm](#signaturealgorithm-1) for available values.
+
+---
+
+### signatureVersion
+
+```swift
+open fileprivate(set) var signatureVesion: Int
+```
+
+The signature version to use. Defaults to `2`.
+
+<Note>
+  The property name is spelled `signatureVesion` (missing a 't') in the source. Use this exact spelling when accessing the property directly.
+</Note>
+
+---
+
+### secureDistribution
+
+```swift
+open fileprivate(set) var secureDistribution: String?
+```
+
+A custom secure distribution domain, used when you have configured a private CDN distribution (advanced plans only). Defaults to `nil`.
+
+---
+
+### cname
+
+```swift
+open fileprivate(set) var cname: String?
+```
+
+A custom domain (CNAME) to use for non-secure URLs when not using a private CDN. Defaults to `nil`.
+
+---
+
+### uploadPrefix
+
+```swift
+open fileprivate(set) var uploadPrefix: String?
+```
+
+Replaces Cloudinary's default API upload prefix with a custom value. Defaults to `nil`.
+
+---
+
+### timeout
+
+```swift
+open fileprivate(set) var timeout: NSNumber?
+```
+
+A custom request timeout in milliseconds. When `nil`, the SDK uses the system default `URLSession` timeout. Defaults to `nil`.
+
+---
+
+### analytics
+
+```swift
+open var analytics: Bool
+```
+
+When `true`, the SDK appends an analytics query parameter (`_a=...`) to generated URLs. Defaults to `true`. This property is writable after initialization, unlike the other properties.
+
+---
+
+## Initializers
+
+### init(cloudName:apiKey:apiSecret:privateCdn:secure:cdnSubdomain:secureCdnSubdomain:longUrlSignature:signatureAlgorithm:signatureVersion:secureDistribution:cname:uploadPrefix:timeout:analytics:)
+
+```swift
+public init(
+    cloudName: String,
+    apiKey: String? = nil,
+    apiSecret: String? = nil,
+    privateCdn: Bool = false,
+    secure: Bool = false,
+    cdnSubdomain: Bool = false,
+    secureCdnSubdomain: Bool = false,
+    longUrlSignature: Bool = false,
+    signatureAlgorithm: SignatureAlgorithm = .sha1,
+    signatureVersion: Int = 2,
+    secureDistribution: String? = nil,
+    cname: String? = nil,
+    uploadPrefix: String? = nil,
+    timeout: NSNumber? = nil,
+    analytics: Bool = true
+)
+```
+
+The designated initializer. Creates a `CLDConfiguration` with explicit parameter values. All parameters except `cloudName` have defaults so you can start with the minimum required set.
+
+<ParamField path="cloudName" type="String" required>
+  Your Cloudinary cloud name.
+</ParamField>
+
+<ParamField path="apiKey" type="String" default="nil">
+  Your account API key. Required for signed operations.
+</ParamField>
+
+<ParamField path="apiSecret" type="String" default="nil">
+  Your account API secret. Required for signing URLs and authenticated calls.
+</ParamField>
+
+<ParamField path="privateCdn" type="Bool" default="false">
+  Use a private CDN subdomain.
+</ParamField>
+
+<ParamField path="secure" type="Bool" default="false">
+  Generate `https://` URLs instead of `http://`.
+</ParamField>
+
+<ParamField path="cdnSubdomain" type="Bool" default="false">
+  Distribute requests across CDN subdomains using a CRC32 hash of the public ID.
+</ParamField>
+
+<ParamField path="secureCdnSubdomain" type="Bool" default="false">
+  Use numbered secure CDN subdomains for cache sharding when `secure` is `true`.
+</ParamField>
+
+<ParamField path="longUrlSignature" type="Bool" default="false">
+  Use a 32-character (long) URL signature. When `true`, SHA-256 is always used regardless of `signatureAlgorithm`.
+</ParamField>
+
+<ParamField path="signatureAlgorithm" type="SignatureAlgorithm" default=".sha1">
+  The hash algorithm for URL signatures. Accepts `.sha1` or `.sha256`.
+</ParamField>
+
+<ParamField path="signatureVersion" type="Int" default="2">
+  The signature version to apply.
+</ParamField>
+
+<ParamField path="secureDistribution" type="String" default="nil">
+  Custom secure distribution hostname (advanced/private CDN plans only).
+</ParamField>
+
+<ParamField path="cname" type="String" default="nil">
+  Custom domain for non-secure URLs.
+</ParamField>
+
+<ParamField path="uploadPrefix" type="String" default="nil">
+  Custom API upload prefix to replace Cloudinary's default.
+</ParamField>
+
+<ParamField path="timeout" type="NSNumber" default="nil">
+  Request timeout in milliseconds. `nil` uses the system default.
+</ParamField>
+
+<ParamField path="analytics" type="Bool" default="true">
+  Append analytics query parameters to generated URLs.
+</ParamField>
+
+```swift
+let config = CLDConfiguration(
+    cloudName: "my-cloud",
+    apiKey: "123456789012345",
+    apiSecret: "abcdefghijklmnopqrstuvwxyz",
+    secure: true,
+    analytics: false
+)
+```
+
+---
+
+### init?(cloudinaryUrl:)
+
+```swift
+public init?(cloudinaryUrl: String)
+```
+
+Parses a `cloudinary://` URL string into a `CLDConfiguration`. Returns `nil` if the URL is malformed or does not start with `cloudinary://`.
+
+The URL format is:
+
+```
+cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
+```
+
+Optionally append query parameters to set extra options:
+
+| Query key | Type | Maps to |
+|---|---|---|
+| `secure` | boolean string | `secure` |
+| `cdn_subdomain` | boolean string | `cdnSubdomain` |
+| `secure_cdn_subdomain` | boolean string | `secureCdnSubdomain` |
+| `long_url_signature` | boolean string | `longUrlSignature` |
+| `signature_algorithm` | `"sha1"` \| `"sha256"` | `signatureAlgorithm` |
+| `signature_version` | integer string | `signatureVersion` |
+| `cname` | string | `cname` |
+| `upload_prefix` | string | `uploadPrefix` |
+| `timeout` | numeric string | `timeout` |
+| `analytics` | boolean string | `analytics` |
+
+If the URL contains a path component (e.g., `cloudinary://key:secret@cloud/custom-dist`), `privateCdn` is set to `true` and `secureDistribution` is set to that path value.
+
+<ParamField path="cloudinaryUrl" type="String" required>
+  A URL string beginning with `cloudinary://`.
+</ParamField>
+
+<ResponseField name="return" type="CLDConfiguration?">
+  A configured `CLDConfiguration` instance, or `nil` if the URL is invalid.
+</ResponseField>
+
+```swift
+guard let config = CLDConfiguration(cloudinaryUrl: "cloudinary://key:secret@my-cloud?secure=true") else {
+    fatalError("Invalid Cloudinary URL")
+}
+```
+
+---
+
+### init?(options:)
+
+```swift
+public init?(options: [String: AnyObject])
+```
+
+Initializes a `CLDConfiguration` from a dictionary of options. Returns `nil` if the `"cloud_name"` key is absent.
+
+Dictionary keys mirror the `ConfigParam` raw values:
+
+| Key | Type | Property |
+|---|---|---|
+| `"cloud_name"` | `String` | `cloudName` *(required)* |
+| `"api_key"` | `String` | `apiKey` |
+| `"api_secret"` | `String` | `apiSecret` |
+| `"private_cdn"` | `Bool` or `String` | `privateCdn` |
+| `"secure"` | `Bool` or `String` | `secure` |
+| `"cdn_subdomain"` | `Bool` or `String` | `cdnSubdomain` |
+| `"secure_cdn_subdomain"` | `Bool` or `String` | `secureCdnSubdomain` |
+| `"long_url_signature"` | `Bool` or `String` | `longUrlSignature` |
+| `"signature_algorithm"` | `String` | `signatureAlgorithm` |
+| `"signature_version"` | `Int` | `signatureVersion` |
+| `"cname"` | `String` | `cname` |
+| `"upload_prefix"` | `String` | `uploadPrefix` |
+| `"secure_distribution"` | `String` | `secureDistribution` |
+| `"timeout"` | `NSNumber` or `String` | `timeout` |
+
+<ParamField path="options" type="[String: AnyObject]" required>
+  A dictionary of configuration key-value pairs. Must contain `"cloud_name"`.
+</ParamField>
+
+<ResponseField name="return" type="CLDConfiguration?">
+  A configured `CLDConfiguration` instance, or `nil` if `"cloud_name"` is missing.
+</ResponseField>
+
+```swift
+let options: [String: AnyObject] = [
+    "cloud_name": "my-cloud" as AnyObject,
+    "api_key": "123456789012345" as AnyObject,
+    "secure": true as AnyObject
+]
+guard let config = CLDConfiguration(options: options) else {
+    fatalError("Missing cloud_name")
+}
+```
+
+---
+
+### initWithEnvParams() *(static)*
+
+```swift
+public static func initWithEnvParams() -> CLDConfiguration?
+```
+
+Reads the `CLOUDINARY_URL` environment variable and parses it as a `cloudinary://` URL. Returns `nil` if the variable is unset or invalid.
+
+<ResponseField name="return" type="CLDConfiguration?">
+  A configured `CLDConfiguration` parsed from `CLOUDINARY_URL`, or `nil` if the variable is absent or malformed.
+</ResponseField>
+
+<Note>
+  This method is most useful in development and CI environments. Set `CLOUDINARY_URL` in your scheme's environment variables in Xcode or in your CI configuration.
+</Note>
+
+```swift
+// Scheme environment: CLOUDINARY_URL = cloudinary://key:secret@my-cloud?secure=true
+if let config = CLDConfiguration.initWithEnvParams() {
+    let cloudinary = CLDCloudinary(configuration: config)
+}
+```
+
+---
+
+## Enumerations
+
+### SignatureAlgorithm
+
+```swift
+@objc public enum SignatureAlgorithm: Int
+```
+
+The hashing algorithm used when generating URL signatures.
+
+| Case | Raw value | Description |
+|---|---|---|
+| `.sha1` | `0` | SHA-1 hash. Default. Produces an 8-character signature prefix. |
+| `.sha256` | `1` | SHA-256 hash. More collision-resistant. Also produces an 8-character signature prefix unless `longUrlSignature` is `true`. |
+
+`SignatureAlgorithm` also conforms to `CustomStringConvertible`. Its `description` returns `"sha1"` or `"sha256"` respectively.
+
+You can also initialize from a string:
+
+```swift
+let algo = CLDConfiguration.SignatureAlgorithm(stringValue: "sha256") // => .sha256
+let fallback = CLDConfiguration.SignatureAlgorithm(stringValue: "unknown") // => .sha1 (default)
+```

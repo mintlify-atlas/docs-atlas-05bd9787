@@ -1,0 +1,269 @@
+---
+title: 'Upload basics'
+description: 'Upload files and raw data to Cloudinary using signed requests with progress tracking and cancellation support.'
+keywords: ['upload', 'signed upload', 'CLDUploader', 'CLDUploadRequestParams', 'CLDUploadRequest', 'CLDUploadResult']
+---
+
+## Overview
+
+`CLDUploader` is the entry point for all upload operations. You obtain an instance by calling `createUploader()` on your configured `CLDCloudinary` object. All upload methods are non-blocking and return a `CLDUploadRequest` that you can use to track progress, handle completion, and control the request lifecycle.
+
+```swift
+let cloudinary = CLDCloudinary(configuration: config)
+let uploader = cloudinary.createUploader()
+```
+
+<Note>
+  Signed uploads require your `CLDConfiguration` to include an `apiKey` and `apiSecret`. For client-side uploads without exposing your secret, use unsigned uploads with an upload preset instead.
+</Note>
+
+---
+
+## Upload from a URL
+
+Use `signedUpload(url:params:progress:completionHandler:)` to upload a file referenced by a local or remote URL.
+
+```swift
+let fileUrl = Bundle.main.url(forResource: "photo", withExtension: "jpg")!
+
+let request = uploader.signedUpload(
+    url: fileUrl,
+    params: nil,
+    progress: { progress in
+        let percent = Int(progress.fractionCompleted * 100)
+        print("Upload progress: \(percent)%")
+    },
+    completionHandler: { result, error in
+        if let error = error {
+            print("Upload failed: \(error.localizedDescription)")
+            return
+        }
+        if let result = result {
+            print("Public ID: \(result.publicId ?? "")")
+            print("Secure URL: \(result.secureUrl ?? "")")
+        }
+    }
+)
+```
+
+<ParamField path="url" type="URL" required>
+  A local file URL (e.g. from the app bundle or the photo library) or a remote HTTP/HTTPS URL pointing to the resource to upload.
+</ParamField>
+
+<ParamField path="params" type="CLDUploadRequestParams">
+  Optional upload parameters such as `publicId`, `tags`, `folder`, and `transformation`. Pass `nil` to use defaults.
+</ParamField>
+
+<ParamField path="progress" type="((Progress) -> Void)">
+  Called periodically during the transfer. The `Progress` object exposes `completedUnitCount`, `totalUnitCount`, and `fractionCompleted`.
+</ParamField>
+
+<ParamField path="completionHandler" type="(CLDUploadResult?, NSError?) -> Void">
+  Called once when the request finishes. Exactly one of `result` or `error` will be non-nil.
+</ParamField>
+
+---
+
+## Upload from Data
+
+Use `signedUpload(data:params:progress:completionHandler:)` when the asset is already in memory as a `Data` object — for example, a `UIImage` encoded as PNG or JPEG.
+
+```swift
+guard let image = UIImage(named: "avatar"),
+      let imageData = image.jpegData(compressionQuality: 0.85) else { return }
+
+let request = uploader.signedUpload(
+    data: imageData,
+    params: nil,
+    progress: { progress in
+        print("Uploaded \(progress.completedUnitCount) of \(progress.totalUnitCount) bytes")
+    },
+    completionHandler: { result, error in
+        guard let result = result, error == nil else {
+            print("Error: \(error!.localizedDescription)")
+            return
+        }
+        print("Upload complete. URL: \(result.secureUrl ?? "")")
+    }
+)
+```
+
+---
+
+## Setting upload parameters
+
+`CLDUploadRequestParams` lets you control how Cloudinary stores and processes the asset. All setter methods return `Self`, so you can chain them.
+
+```swift
+let params = CLDUploadRequestParams()
+    .setPublicId("profile/user_42")
+    .setFolder("avatars")
+    .setTags(["profile", "user"])
+    .setTransformation(CLDTransformation().setWidth(800).setHeight(800).setCrop(.limit))
+    .setOverwrite(true)
+    .setColors(true)
+```
+
+### Common parameters
+
+<ResponseField name="publicId" type="String">
+  The identifier used to access the uploaded resource. A random ID is assigned if omitted. May contain path segments separated by `/` to organize assets into virtual folders.
+</ResponseField>
+
+<ResponseField name="folder" type="String">
+  An optional folder path prepended to the public ID. For example, setting `folder` to `"team/avatars"` and `publicId` to `"alice"` results in a public ID of `team/avatars/alice`.
+</ResponseField>
+
+<ResponseField name="tags" type="String | [String]">
+  One or more tags to assign to the uploaded asset. Accepts a comma-separated string or an array of strings.
+</ResponseField>
+
+<ResponseField name="transformation" type="CLDTransformation">
+  An incoming transformation applied to the asset before it is saved in the cloud. Use this to resize, crop, or convert format on ingest.
+</ResponseField>
+
+<ResponseField name="overwrite" type="Bool">
+  Whether to overwrite an existing asset with the same public ID. Defaults to `true` for signed uploads.
+</ResponseField>
+
+<ResponseField name="format" type="String">
+  Convert the uploaded asset to this format before saving (e.g. `"webp"`, `"jpg"`).
+</ResponseField>
+
+<ResponseField name="notificationUrl" type="String">
+  A webhook URL that Cloudinary calls when the upload is complete.
+</ResponseField>
+
+<ResponseField name="eager" type="[CLDTransformation]">
+  An array of transformations to generate eagerly during the upload, rather than on first access.
+</ResponseField>
+
+<ResponseField name="qualityAnalysis" type="Bool">
+  When `true`, the response includes a quality analysis score for the uploaded image.
+</ResponseField>
+
+<ResponseField name="accessibilityAnalysis" type="Bool">
+  When `true`, the response includes an accessibility analysis for the uploaded image.
+</ResponseField>
+
+---
+
+## Reading the upload result
+
+`CLDUploadResult` is returned in the completion handler when the upload succeeds.
+
+<ResponseField name="publicId" type="String?">
+  The public ID assigned to the uploaded asset.
+</ResponseField>
+
+<ResponseField name="secureUrl" type="String?">
+  The HTTPS delivery URL of the uploaded asset.
+</ResponseField>
+
+<ResponseField name="url" type="String?">
+  The HTTP delivery URL of the uploaded asset.
+</ResponseField>
+
+<ResponseField name="resourceType" type="String?">
+  The resource type: `"image"`, `"video"`, or `"raw"`.
+</ResponseField>
+
+<ResponseField name="format" type="String?">
+  The file format of the stored asset (e.g. `"jpg"`, `"png"`, `"mp4"`).
+</ResponseField>
+
+<ResponseField name="width" type="Int?">
+  Width in pixels (images and videos only).
+</ResponseField>
+
+<ResponseField name="height" type="Int?">
+  Height in pixels (images and videos only).
+</ResponseField>
+
+<ResponseField name="version" type="String?">
+  The version identifier of the stored asset, useful for cache busting.
+</ResponseField>
+
+<ResponseField name="signature" type="String?">
+  A cryptographic signature of the upload response parameters.
+</ResponseField>
+
+<ResponseField name="createdAt" type="String?">
+  ISO 8601 timestamp of when the asset was created.
+</ResponseField>
+
+<ResponseField name="tags" type="[String]?">
+  Tags assigned to the uploaded asset.
+</ResponseField>
+
+<ResponseField name="duration" type="Double?">
+  Duration in seconds (video assets only).
+</ResponseField>
+
+<ResponseField name="deleteToken" type="String?">
+  A token that allows unauthenticated deletion of the asset within 10 minutes. Only present when `setReturnDeleteToken(true)` is set in the upload params.
+</ResponseField>
+
+---
+
+## Controlling the request
+
+Every upload method returns a `CLDUploadRequest`. You can cancel, suspend, or resume it at any time.
+
+```swift
+// Store the request
+let request = uploader.signedUpload(url: fileUrl, params: params) { result, error in
+    // handle completion
+}
+
+// Later — cancel if the user navigates away
+request.cancel()
+
+// Pause and resume around connectivity changes
+request.suspend()
+request.resume()
+```
+
+You can also chain the progress and response closures on the returned object instead of passing them inline:
+
+```swift
+uploader
+    .signedUpload(url: fileUrl, params: params)
+    .progress { progress in
+        print("\(Int(progress.fractionCompleted * 100))%")
+    }
+    .response { result, error in
+        print(result?.publicId ?? "no result")
+    }
+```
+
+---
+
+## Background upload sessions
+
+To support uploads that continue while your app is in the background, configure a `URLSessionConfiguration` with a background identifier and pass it to `CLDCloudinary`. Then forward the system callback to the SDK:
+
+```swift
+// AppDelegate.swift
+func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+) {
+    cloudinary.setBackgroundCompletionHandler(completionHandler)
+}
+```
+
+`setBackgroundCompletionHandler(_:)` stores the handler and calls it automatically once the background session finishes processing its events.
+
+<Tip>
+  Create your `CLDCloudinary` instance with a background `URLSessionConfiguration` to ensure tasks started in the foreground survive app suspension:
+
+  ```swift
+  let sessionConfig = URLSessionConfiguration.background(withIdentifier: "com.myapp.upload")
+  let cloudinary = CLDCloudinary(
+      configuration: config,
+      sessionConfiguration: sessionConfig
+  )
+  ```
+</Tip>
